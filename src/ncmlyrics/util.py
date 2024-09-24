@@ -4,6 +4,7 @@ from pathlib import Path
 from re import compile as reCompile
 from urllib.parse import parse_qs as parseQuery
 from urllib.parse import urlparse as parseUrl
+
 from httpx import get as httpGet
 
 from .api import NCMTrack
@@ -74,30 +75,45 @@ def parseLink(url: str) -> Link:
     return Link(contentType, contentId)
 
 
-def testTrackSourceExists(track: NCMTrack, path: Path) -> Path | None:
-    for name in (f"{",".join(track.artists)} - {track.name}", f"{" ".join(track.artists)} - {track.name}"):
-        for suffix in (".mp3", ".flac", ".ncm"):
-            result = path.joinpath(name).with_suffix(suffix)
-            if result.exists():
-                return result
+def testExistTrackSource(track: NCMTrack, path: Path) -> Path | None:
+    # 暂不考虑特殊字符的问题，目前于 PC 端已知的转换规则有：(":" => "", "\" => "＼")
+
+    filenameList: list[str] = []
+    filenameListWithExtension: list[str] = []
+
+    if len(track.artists) == 1:
+        filenameList.append(f"{track.artists[0]} - {track.name}")
+    else:
+        for delimiter in (",", " "):
+            filenameList.append(f"{delimiter.join(track.artists)} - {track.name}")
+
+    for filename in filenameList:
+        for extension in (".mp3", ".ncm", ".flac"):
+            filenameListWithExtension.append(filename + extension)
+
+    for filename in filenameListWithExtension:
+        result = path / filename
+        if result.exists():
+            return result
+
     return None
 
 
 def pickOutput(track: NCMTrack, outputs: list[Path], forceSourceExists: bool = False) -> Path | None:
     match len(outputs):
         case 0:
-            result = testTrackSourceExists(track, Path())
+            result = testExistTrackSource(track, Path())
             if result is not None:
                 return result.with_suffix(".lrc")
             return None if forceSourceExists else Path(f"{",".join(track.artists)} - {track.name}.lrc")
         case 1:
-            result = testTrackSourceExists(track, outputs[0])
+            result = testExistTrackSource(track, outputs[0])
             if result is not None:
                 return result.with_suffix(".lrc")
             return None if forceSourceExists else outputs[0] / f"{",".join(track.artists)} - {track.name}.lrc"
         case _:
             for output in outputs:
-                result = testTrackSourceExists(track, output)
+                result = testExistTrackSource(track, output)
                 if result is not None:
                     return result.with_suffix(".lrc")
             return None if forceSourceExists else outputs[-1] / f"{",".join(track.artists)} - {track.name}.lrc"

@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from ncmlyrics.api import NCMTrack
 from ncmlyrics.error import ParseLinkError, UnsupportLinkError
-from ncmlyrics.util import Link, LinkType, parseLink, testTrackSourceExists, pickOutput
+from ncmlyrics.util import Link, LinkType, parseLink, pickOutput, testExistTrackSource
 
 
 class TestUtils(TestCase):
@@ -97,27 +97,27 @@ class TestUtils(TestCase):
             "https://music.163.com/playlist?id=123a",
         )
 
-    def test_testTrackSourceExists(self):
-        resources = Path("tests/resource/util/testTrackSourceExists")
+    def test_testExistTrackSource(self):
+        resources = Path("tests/resource/util/testExistTrackSource")
 
         self.assertEqual(
-            testTrackSourceExists(NCMTrack(0, "Mp3Name", ["Mp3Artist"]), resources),
+            testExistTrackSource(NCMTrack(0, "Mp3Name", ["Mp3Artist"]), resources),
             resources / "Mp3Artist - Mp3Name.mp3",
         )
 
         self.assertEqual(
-            testTrackSourceExists(NCMTrack(0, "Mp3Name", ["Mp3Artist1", "Mp3Artist2"]), resources),
+            testExistTrackSource(NCMTrack(0, "Mp3Name", ["Mp3Artist1", "Mp3Artist2"]), resources),
             resources / "Mp3Artist1,Mp3Artist2 - Mp3Name.mp3",
         )
 
         self.assertEqual(
-            testTrackSourceExists(NCMTrack(0, "FlacName", ["FlacArtist1", "FlacArtist2"]), resources),
+            testExistTrackSource(NCMTrack(0, "FlacName", ["FlacArtist1", "FlacArtist2"]), resources),
             resources / "FlacArtist1 FlacArtist2 - FlacName.flac",
         )
 
         self.assertEqual(
-            testTrackSourceExists(NCMTrack(0, "NcmName", ["NcmArtist1", "NcmArtist2"]), resources),
-            resources / "NcmArtist1,NcmArtist2 - NcmName.flac",
+            testExistTrackSource(NCMTrack(0, "NcmNameWith.", ["NcmArtistWith."]), resources),
+            resources / "NcmArtistWith. - NcmNameWith..ncm",
         )
 
     def test_pickOutput(self):

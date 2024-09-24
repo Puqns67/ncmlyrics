@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
-from click import argument, command, confirm, option, Path as clickPath
+
+from click import Path as clickPath
+from click import argument, command, confirm, option
 from rich.console import Console
 from rich.theme import Theme
 
