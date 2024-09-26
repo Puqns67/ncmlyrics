@@ -132,7 +132,14 @@ def main(outputs: list[Path], exist: bool, overwrite: bool, quiet: bool, links: 
         confirm("继续操作？", default=True, abort=True)
 
     for track, path in app.tracks:
-        api.getLyricsByTrack(track.id).lrc().saveAs(path)
+        ncmlyrics = api.getLyricsByTrack(track.id)
+        if ncmlyrics.isPureMusic:
+            console.print(f"曲目 {track.name} 为纯音乐, 跳过此曲目")
+        else:
+            ncmlyrics.lrc().saveAs(path)
+            console.print(f"--> {str(path)}")
+
+    api.saveCookies()
 
 
 if __name__ == "__main__":

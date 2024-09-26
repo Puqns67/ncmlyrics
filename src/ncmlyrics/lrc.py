@@ -38,8 +38,12 @@ class LrcMetaType(Enum):
 
 
 class Lrc:
-    metadata: dict[LrcMetaType, dict[LrcType, str]] = {}  # metaType: lrcType: metaContent
-    lyrics: dict[int, dict[LrcType, str]] = {}  # timestamp: lrcType: lrcContent
+    def __init__(self) -> None:
+        # metaType: lrcType: metaContent
+        self.metadata: dict[LrcMetaType, dict[LrcType, str]] = {}
+
+        # timestamp: lrcType: lrcContent
+        self.lyrics: dict[int, dict[LrcType, str]] = {}
 
     def serializeLyricString(self, lrcType: LrcType, lrcStr: str) -> None:
         for line in lrcStr.splitlines():

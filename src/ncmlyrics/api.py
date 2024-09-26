@@ -1,12 +1,12 @@
 from dataclasses import dataclass
-from http.cookiejar import MozillaCookieJar
+from http.cookiejar import LoadError, MozillaCookieJar
 from json import dumps as dumpJson
 from typing import Any, Self
 
 from httpx import Client as HttpClient
 
 from .constant import CONFIG_API_DETAIL_TRACK_PER_REQUEST, NCM_API_BASE_URL, PLATFORM
-from .error import NCMApiParseError, NCMApiRequestError
+from .error import NCMApiParseError, NCMApiRequestError, UnsupportedPureMusicTrackError
 from .lrc import Lrc, LrcType
 
 REQUEST_HEADERS = {
@@ -135,6 +135,9 @@ class NCMLyrics:
         return NCMLyrics(isPureMusic=False, data=data)
 
     def lrc(self) -> Lrc:
+        if self.isPureMusic:
+            raise UnsupportedPureMusicTrackError
+
         result = Lrc()
 
         for lrcType in LrcType:
@@ -158,7 +161,7 @@ class NCMApi:
 
         try:
             self._cookieJar.load(str(PLATFORM.user_config_path / "cookies.txt"))
-        except FileNotFoundError:
+        except FileNotFoundError | LoadError:
             pass
 
         self._httpClient = HttpClient(
@@ -168,9 +171,8 @@ class NCMApi:
             http2=http2,
         )
 
-    def __del__(self) -> None:
+    def saveCookies(self) -> None:
         self._cookieJar.save(str(PLATFORM.user_config_path / "cookies.txt"))
-        self._httpClient.close()
 
     def getDetailsForTrack(self, trackId: int) -> NCMTrack:
         params = {"c": f"[{{'id':{trackId}}}]"}
