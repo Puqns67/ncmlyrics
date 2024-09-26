@@ -2,6 +2,7 @@ from enum import Enum
 from pathlib import Path
 from re import Match
 from re import compile as reCompile
+from typing import Generator
 
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
 
@@ -106,39 +107,29 @@ class Lrc:
         self.appendLyric(lrcType, timestamps, lyric)
 
     def deserializeLyricFile(self) -> str:
-        return "\n".join(self.deserializeLyricRows())
+        return "\n".join(list(self.deserializeLyricRows()))
 
-    def deserializeLyricRows(self) -> list[str]:
-        result = []
-
-        result.extend(self.generateLyricMetaDataRows())
+    def deserializeLyricRows(self) -> Generator[str, None, None]:
+        yield from self.generateLyricMetaDataRows()
 
         for timestamp in sorted(self.lyrics.keys()):
-            result.extend(self.generateLyricRows(timestamp))
+            yield from self.generateLyricRows(timestamp)
 
-        return result
-
-    def generateLyricMetaDataRows(self) -> list[str]:
-        result = []
-
+    def generateLyricMetaDataRows(self) -> Generator[str, None, None]:
         for type in LrcMetaType:
             if type in self.metadata:
                 for lrcType in self.metadata[type].keys():
-                    result.append(f"[{type.value}: {lrcType.preety()}/{self.metadata[type][lrcType]}]")
+                    yield f"[{type.value}: {lrcType.preety()}/{self.metadata[type][lrcType]}]"
 
-        return result
-
-    def generateLyricRows(self, timestamp: int) -> list[str]:
-        result = []
-
+    def generateLyricRows(self, timestamp: int) -> Generator[str, None, None]:
         for lrcType in self.lyrics[timestamp].keys():
-            result.append(self._timestamp2timelabel(timestamp) + self.lyrics[timestamp][lrcType])
+            yield self._timestamp2timelabel(timestamp) + self.lyrics[timestamp][lrcType]
 
-        return result
-
-    def saveAs(self, path: Path):
+    def saveAs(self, path: Path) -> None:
         with path.open("w+") as fs:
-            fs.write(self.deserializeLyricFile())
+            for row in self.deserializeLyricRows():
+                fs.write(row)
+                fs.write("\n")
 
     def _timelabel2timestamp(self, timelabel: Match[str]) -> int:
         minutes, seconds = timelabel.groups()
