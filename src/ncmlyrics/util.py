@@ -11,6 +11,8 @@ from .api import NCMTrack
 from .error import ParseLinkError, UnsupportLinkError
 
 RE_ANDROID_ALBUM_SHARE_LINK_PATH = reCompile(r"^/album/(?P<id>\d*)/?$")
+RE_SAFE_FILENAME = reCompile(r"\*{2,}")
+TRANSLATER_SAFE_FILENAME = str.maketrans({i: 0x2A for i in ("<", ">", ":", '"', "/", "\\", "|", "?")})
 
 
 class LinkType(Enum):
@@ -76,27 +78,18 @@ def parseLink(url: str) -> Link:
 
 
 def testExistTrackSource(track: NCMTrack, path: Path) -> Path | None:
-    # 暂不考虑特殊字符的问题，目前于 PC 端已知的转换规则有：(":" => "", "\" => "＼")
+    safeFileName = RE_SAFE_FILENAME.sub(
+        "*", f"{"?".join(track.artists[:3])} - {track.name.rstrip(".")}.*".translate(TRANSLATER_SAFE_FILENAME)
+    )
 
-    filenameList: list[str] = []
-    filenameListWithExtension: list[str] = []
+    globing = path.glob(safeFileName, case_sensitive=False)
 
-    if len(track.artists) == 1:
-        filenameList.append(f"{track.artists[0]} - {track.name}")
-    else:
-        for delimiter in (",", " "):
-            filenameList.append(f"{delimiter.join(track.artists)} - {track.name}")
-
-    for filename in filenameList:
-        for extension in (".mp3", ".ncm", ".flac"):
-            filenameListWithExtension.append(filename + extension)
-
-    for filename in filenameListWithExtension:
-        result = path / filename
-        if result.exists():
-            return result
-
-    return None
+    try:
+        return next(globing)
+    except StopIteration:
+        return None
+    finally:
+        globing.close()
 
 
 def pickOutput(track: NCMTrack, outputs: list[Path], forceSourceExists: bool = False) -> Path | None:
