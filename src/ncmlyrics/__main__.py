@@ -73,7 +73,7 @@ class NCMLyricsApp:
     nargs=-1,
 )
 def main(outputs: list[Path], exist: bool, overwrite: bool, quiet: bool, links: list[str]) -> int:
-    console = Console(theme=NCMLyricsAppTheme)
+    console = Console(theme=NCMLyricsAppTheme, highlight=False)
 
     if len(links) == 0:
         console.print(
