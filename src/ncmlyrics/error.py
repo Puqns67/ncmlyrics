@@ -25,7 +25,7 @@ class ParseLinkError(NCMLyricsAppError):
     """无法解析此分享链接"""
 
 
-class UnsupportLinkError(NCMLyricsAppError):
+class UnsupportedLinkError(NCMLyricsAppError):
     """不支持的分享链接"""
 
 

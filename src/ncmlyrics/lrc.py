@@ -14,8 +14,8 @@ __all__ = ["LrcType", "LrcMetaType", "Lrc"]
 
 LRC_RE_COMMIT = reCompile(r"^\s*#")
 LRC_RE_META = reCompile(r"^\s*\[(?P<type>ti|ar|al|au|length|by|offset):\s*(?P<content>.+?)\s*\]\s*$")
-LRC_RE_META_NCM_SPICAL = reCompile(r"^\s*\{.*\}\s*$")
-LRC_RE_LYRIC = reCompile(r"^\s*(?P<timelabels>(?:\s*\[\d{1,2}:\d{1,2}(?:\.\d{1,3})?\])+)\s*(?P<lyric>.+?)\s*$")
+LRC_RE_META_NCM_SPECIAL = reCompile(r"^\s*\{.*\}\s*$")
+LRC_RE_LYRIC = reCompile(r"^\s*(?P<timeLabels>(?:\s*\[\d{1,2}:\d{1,2}(?:\.\d{1,3})?\])+)\s*(?P<lyric>.+?)\s*$")
 LRC_RE_LYRIC_TIMELABEL = reCompile(r"\[(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}(?:\.\d{1,3})?)\]")
 
 
@@ -53,8 +53,8 @@ class Lrc:
         if LRC_RE_COMMIT.match(lrcRow) is not None:
             return
 
-        # Skip NCM spical metadata lines
-        if LRC_RE_META_NCM_SPICAL.match(lrcRow) is not None:
+        # Skip NCM special metadata lines
+        if LRC_RE_META_NCM_SPECIAL.match(lrcRow) is not None:
             return
 
         matchedMetaDataRow = LRC_RE_META.match(lrcRow)
@@ -88,11 +88,11 @@ class Lrc:
             self.metadata[metaType] = {lrcType: metaContent}
 
     def appendMatchedLyricRow(self, lrcType: LrcType, matchedLine: Match[str]) -> None:
-        timelabels, lyric = matchedLine.groups()
+        timeLabels, lyric = matchedLine.groups()
         timestamps: list[int] = []
 
-        for timelabel in LRC_RE_LYRIC_TIMELABEL.finditer(timelabels):
-            timestamps.append(self._timelabel2timestamp(timelabel))
+        for timeLabel in LRC_RE_LYRIC_TIMELABEL.finditer(timeLabels):
+            timestamps.append(self._timeLabel2Timestamp(timeLabel))
 
         if CONFIG_LRC_AUTO_MERGE:
             mergedTimestamps: list[int] = []
@@ -120,11 +120,11 @@ class Lrc:
         for type in LrcMetaType:
             if type in self.metadata:
                 for lrcType in self.metadata[type].keys():
-                    yield f"[{type.value}: {lrcType.preety()}/{self.metadata[type][lrcType]}]"
+                    yield f"[{type.value}: {lrcType.pretty()}/{self.metadata[type][lrcType]}]"
 
     def generateLyricRows(self, timestamp: int) -> Generator[str, None, None]:
         for lrcType in self.lyrics[timestamp].keys():
-            yield self._timestamp2timelabel(timestamp) + self.lyrics[timestamp][lrcType]
+            yield self._timestamp2TimeLabel(timestamp) + self.lyrics[timestamp][lrcType]
 
     def saveAs(self, path: Path) -> None:
         with path.open("w+") as fs:
@@ -132,11 +132,13 @@ class Lrc:
                 fs.write(row)
                 fs.write("\n")
 
-    def _timelabel2timestamp(self, timelabel: Match[str]) -> int:
-        minutes, seconds = timelabel.groups()
+    @staticmethod
+    def _timeLabel2Timestamp(timeLabel: Match[str]) -> int:
+        minutes, seconds = timeLabel.groups()
         return round((int(minutes) * 60 + float(seconds)) * 1000)
 
-    def _timestamp2timelabel(self, timestamp: int) -> str:
+    @staticmethod
+    def _timestamp2TimeLabel(timestamp: int) -> str:
         seconds = timestamp / 1000
         return f"[{seconds//60:02.0f}:{seconds%60:06.3f}]"
 
@@ -147,7 +149,7 @@ class Lrc:
         timestampMax = timestamp + CONFIG_LRC_AUTO_MERGE_OFFSET
 
         for existLyric in self.lyrics.keys():
-            if timestampMin <= existLyric and existLyric <= timestampMax:
+            if timestampMin <= existLyric <= timestampMax:
                 result = existLyric
                 break
 

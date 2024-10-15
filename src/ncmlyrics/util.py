@@ -42,7 +42,7 @@ def parseLink(url: str) -> Link:
                         contentType = LinkType.Album
                         contentId = int(matchedPath["id"])
                     else:
-                        raise UnsupportLinkError(parsedUrl)
+                        raise UnsupportedLinkError(parsedUrl)
         case "y.music.163.com":
             match parsedUrl.path:
                 case "/m/playlist":
@@ -50,7 +50,7 @@ def parseLink(url: str) -> Link:
                 case "/m/song":
                     contentType = LinkType.Song
                 case _:
-                    raise UnsupportLinkError(parsedUrl)
+                    raise UnsupportedLinkError(parsedUrl)
         case "163cn.tv":
             response = httpGet(url)
             if response.status_code != 302:
@@ -60,7 +60,7 @@ def parseLink(url: str) -> Link:
                 raise ParseLinkError("Api 未返回重定向结果")
             return parseLink(newUrl)
         case _:
-            raise UnsupportLinkError(parsedUrl)
+            raise UnsupportedLinkError(parsedUrl)
 
     if contentId is None:
         try:

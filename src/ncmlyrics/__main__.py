@@ -11,7 +11,7 @@ from .enum import LinkType
 from .error import UnsupportedLinkError
 from .lrc import Lrc
 from .object import NCMTrack
-from .util import Link, parseLink, pickOutput
+from .util import parseLink, pickOutput
 
 NCMLyricsAppTheme = Theme(
     {
@@ -87,11 +87,9 @@ def main(outputs: list[Path], exist: bool, overwrite: bool, quiet: bool, links: 
     app = NCMLyricsApp(console=console, outputs=outputs, exist=exist, overwrite=overwrite, quiet=quiet, tracks=[])
 
     for link in links:
-        parsed: Link | None = None
-
         try:
             parsed = parseLink(link)
-        except UnsupportLinkError:
+        except UnsupportedLinkError:
             continue
 
         match parsed.type:
