@@ -4,7 +4,7 @@ authors = [{ name = "Puqns67", email = "me@puqns67.icu" }]
 dependencies = [
 	"httpx>=0.27.2",
 	"h2>=4.1.0",
-	"rich>=13.8.1",
+	"rich>=13.9.2",
 	"brotli>=1.1.0",
 	"zstandard>=0.23.0",
 	"click>=8.1.7",

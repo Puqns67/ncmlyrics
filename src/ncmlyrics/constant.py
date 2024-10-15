@@ -2,7 +2,7 @@ from httpx import URL
 from platformdirs import PlatformDirs
 
 APP_NAME = "ncmlyrics"
-APP_VERSION = "0.1.0a1"
+APP_VERSION = "0.1.0a2"
 
 NCM_API_BASE_URL = URL("https://interface.music.163.com/api")
 

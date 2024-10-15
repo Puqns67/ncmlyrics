@@ -23,8 +23,6 @@ class NCMTrack:
         except JSONDecodeError:
             raise ObjectParseError("无法以预期的 Json 格式解析响应")
 
-        print(data)
-
         if data.get("code") != 200:
             raise ObjectParseError(f"响应码不为 200: {data["code"]}")
 
