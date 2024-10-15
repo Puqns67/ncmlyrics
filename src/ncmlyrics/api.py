@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from http.cookiejar import LoadError, MozillaCookieJar
-from json import dumps as dumpJson, JSONDecodeError
-from typing import Any, Iterable, Self
+from json import dumps as dumpJson
+from typing import Iterable
 
 from httpx import Client as HttpXClient
 from httpx import Request as HttpXRequest
@@ -9,12 +9,10 @@ from httpx import Response as HttpXResponse
 
 from .constant import CONFIG_API_DETAIL_TRACK_PER_REQUEST, NCM_API_BASE_URL, PLATFORM
 from .error import (
-    NCMApiResponseParseError,
     NCMApiRequestError,
     NCMApiRetryLimitExceededError,
-    UnsupportedPureMusicTrackError,
 )
-from .lrc import Lrc, LrcType
+from .object import NCMAlbum, NCMLyrics, NCMPlaylist, NCMTrack
 
 REQUEST_HEADERS = {
     "Accept": "application/json",
@@ -22,171 +20,6 @@ REQUEST_HEADERS = {
     "Connection": "keep-alive",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
 }
-
-
-@dataclass
-class NCMTrack:
-    id: int
-    name: str
-    artists: list[str]
-
-    @classmethod
-    def fromApi(cls, response: HttpXResponse) -> list[Self]:
-        try:
-            data: dict = response.json()
-        except JSONDecodeError:
-            raise NCMApiResponseParseError("无法以预期的 Json 格式解析响应")
-
-        if data.get("code") != 200:
-            raise NCMApiResponseParseError(f"响应码不为 200: {data["code"]}")
-
-        data = data.get("songs")
-        if data is None:
-            raise NCMApiResponseParseError("不存在单曲对应的结构")
-
-        result = []
-
-        for track in data:
-            result.append(cls.fromData(track))
-
-        return result
-
-    @classmethod
-    def fromData(cls, data: dict) -> Self:
-        try:
-            return cls(
-                id=data["id"],
-                name=data["name"],
-                artists=[artist["name"] for artist in data["ar"]],
-            )
-        except KeyError as e:
-            raise NCMApiResponseParseError(f"需要的键不存在: {e}")
-
-    def link(self) -> str:
-        return f"https://music.163.com/song?id={self.id}"
-
-
-@dataclass
-class NCMAlbum:
-    id: int
-    name: str
-    tracks: list[NCMTrack]
-
-    @classmethod
-    def fromApi(cls, response: HttpXResponse) -> Self:
-        try:
-            data: dict = response.json()
-        except JSONDecodeError:
-            raise NCMApiResponseParseError("无法以预期的 Json 格式解析响应")
-
-        if data.get("code") != 200:
-            raise NCMApiResponseParseError(f"响应码不为 200: {data["code"]}")
-
-        album = data.get("album")
-        if album is None:
-            raise NCMApiResponseParseError("不存在专辑对应的结构")
-
-        try:
-            return cls(
-                id=album["id"],
-                name=album["name"],
-                tracks=[NCMTrack.fromData(track) for track in data["songs"]],
-            )
-        except KeyError as e:
-            raise NCMApiResponseParseError(f"需要的键不存在: {e}")
-
-    def link(self) -> str:
-        return f"https://music.163.com/album?id={self.id}"
-
-
-@dataclass
-class NCMPlaylist:
-    id: int
-    name: str
-    tracks: list[NCMTrack]
-    trackIds: list[int]
-
-    @classmethod
-    def fromApi(cls, response: HttpXResponse) -> Self:
-        try:
-            data: dict = response.json()
-        except JSONDecodeError:
-            raise NCMApiResponseParseError("无法以预期的 Json 格式解析响应")
-
-        if data.get("code") != 200:
-            raise NCMApiResponseParseError(f"响应码不为 200: {data["code"]}")
-
-        playlist = data.get("playlist")
-        if playlist is None:
-            raise NCMApiResponseParseError("不存在歌单对应的结构")
-
-        try:
-            tracks: list[NCMTrack] = []
-            trackIds: list[int] = [track["id"] for track in playlist["trackIds"]]
-
-            for track in playlist["tracks"]:
-                parsedTrack = NCMTrack.fromData(track)
-                trackIds.remove(parsedTrack.id)
-                tracks.append(parsedTrack)
-
-            return cls(
-                id=playlist["id"],
-                name=playlist["name"],
-                tracks=tracks,
-                trackIds=trackIds,
-            )
-        except KeyError as e:
-            raise NCMApiResponseParseError(f"需要的键不存在: {e}")
-
-    def link(self) -> str:
-        return f"https://music.163.com/playlist?id={self.id}"
-
-    def fillDetailsOfTracks(self, api) -> None:
-        self.tracks.extend(api.getDetailsForTracks(self.trackIds))
-        self.trackIds.clear()
-
-
-@dataclass
-class NCMLyrics:
-    id: int | None
-    isPureMusic: bool
-    data: Any | None
-
-    @classmethod
-    def fromApi(cls, response: HttpXResponse) -> Self:
-        try:
-            data: dict = response.json()
-        except JSONDecodeError:
-            raise NCMApiResponseParseError("无法以预期的 Json 格式解析响应")
-
-        if data.get("code") != 200:
-            raise NCMApiResponseParseError(f"响应码不为 200: {data["code"]}")
-
-        if data.get("pureMusic") is True:
-            return cls(id=None, isPureMusic=True, data=None)
-
-        return cls(id=None, isPureMusic=False, data=data)
-
-    def withId(self, id: int) -> Self:
-        self.id = id
-        return self
-
-    def lrc(self) -> Lrc:
-        if self.isPureMusic:
-            raise UnsupportedPureMusicTrackError
-
-        result = Lrc()
-
-        for lrcType in LrcType:
-            try:
-                lrcStr = self.data[lrcType.value]["lyric"]
-            except KeyError:
-                pass
-            else:
-                if lrcStr != "":
-                    result.serializeLyricString(lrcType, lrcStr)
-
-        return result
 
 
 class NCMApi:

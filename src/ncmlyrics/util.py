@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from enum import Enum, auto
 from pathlib import Path
 from re import compile as reCompile
 from urllib.parse import parse_qs as parseQuery
@@ -7,18 +6,13 @@ from urllib.parse import urlparse as parseUrl
 
 from httpx import get as httpGet
 
-from .api import NCMTrack
-from .error import ParseLinkError, UnsupportLinkError
+from .enum import LinkType
+from .error import ParseLinkError, UnsupportedLinkError
+from .object import NCMTrack
 
 RE_ANDROID_ALBUM_SHARE_LINK_PATH = reCompile(r"^/album/(?P<id>\d*)/?$")
 RE_SAFE_FILENAME = reCompile(r"\*{2,}")
 TRANSLATER_SAFE_FILENAME = str.maketrans({i: 0x2A for i in ("<", ">", ":", '"', "/", "\\", "|", "?")})
-
-
-class LinkType(Enum):
-    Song = auto()
-    Album = auto()
-    Playlist = auto()
 
 
 @dataclass

@@ -6,10 +6,12 @@ from click import argument, command, confirm, option
 from rich.console import Console
 from rich.theme import Theme
 
-from ncmlyrics.error import UnsupportLinkError
-
-from .api import NCMApi, NCMTrack
-from .util import Link, LinkType, parseLink, pickOutput
+from .api import NCMApi
+from .enum import LinkType
+from .error import UnsupportedLinkError
+from .lrc import Lrc
+from .object import NCMTrack
+from .util import Link, parseLink, pickOutput
 
 NCMLyricsAppTheme = Theme(
     {
@@ -136,7 +138,7 @@ def main(outputs: list[Path], exist: bool, overwrite: bool, quiet: bool, links: 
         if ncmlyrics.isPureMusic:
             console.print(f"曲目 {track.name} 为纯音乐, 跳过此曲目")
         else:
-            ncmlyrics.lrc().saveAs(path)
+            Lrc.fromNCMLyrics(ncmlyrics).saveAs(path)
             console.print(f"--> {str(path)}")
 
     api.saveCookies()
