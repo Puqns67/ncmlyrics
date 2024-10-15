@@ -16,14 +16,38 @@ __all__ = ["NCMApi"]
 
 REQUEST_HEADERS = {
     "Accept": "application/json",
-    "Accept-Encoding": "zstd, br, gzip, deflate",
+    "Accept-Encoding": "gzip, deflate",
     "Connection": "keep-alive",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
 }
 
+try:
+    import brotlicffi as brotli  # type: ignore
+except ImportError:
+    try:
+        import brotli  # type: ignore # noqa: F401
+    except ImportError:
+        pass
+    else:
+        REQUEST_HEADERS["Accept-Encoding"] = "br, " + REQUEST_HEADERS["Accept-Encoding"]
+else:
+    REQUEST_HEADERS["Accept-Encoding"] = "br, " + REQUEST_HEADERS["Accept-Encoding"]
+
+try:
+    import zstandard  # type: ignore # noqa: F401
+except ImportError:
+    pass
+else:
+    REQUEST_HEADERS["Accept-Encoding"] = "zstd, " + REQUEST_HEADERS["Accept-Encoding"]
+
+try:
+    import h2  # type: ignore
+except ImportError:
+    h2 = None
+
 
 class NCMApi:
-    def __init__(self, http2: bool = True) -> None:
+    def __init__(self) -> None:
         self._cookiePath = PLATFORM.user_config_path / "cookies.txt"
         self._cookieJar = MozillaCookieJar()
 
@@ -36,7 +60,7 @@ class NCMApi:
             base_url=NCM_API_BASE_URL,
             cookies=self._cookieJar,
             headers=REQUEST_HEADERS,
-            http2=http2,
+            http2=h2 is not None,
         )
 
     def _fetch(self, request: HttpXRequest, retry: int | None = 4) -> HttpXResponse:

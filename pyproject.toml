@@ -1,40 +1,45 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "ncmlyrics"
-authors = [{ name = "Puqns67", email = "me@puqns67.icu" }]
-dependencies = [
-	"httpx>=0.27.2",
-	"h2>=4.1.0",
-	"rich>=13.9.2",
-	"brotli>=1.1.0",
-	"zstandard>=0.23.0",
-	"click>=8.1.7",
-	"platformdirs>=4.3.6",
-]
+description = "No description at now."
 requires-python = ">=3.12"
-readme = "README.md"
 license = { text = "GPL-3.0-or-later" }
-dynamic = ["version"]
+authors = [{ name = "Puqns67", email = "me@puqns67.icu" }]
 classifiers = [
-	"Programming Language :: Python :: 3",
-	"Programming Language :: Python :: 3.12",
-	"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
-	"Operating System :: OS Independent",
 	"Development Status :: 1 - Planning",
 	"Environment :: Console",
+	"Programming Language :: Python :: 3",
+	"Programming Language :: Python :: 3 :: Only",
+	"Programming Language :: Python :: 3.12",
+	"Programming Language :: Python :: 3.13",
+	"Programming Language :: Python :: Implementation :: CPython",
+	"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+	"Operating System :: OS Independent",
 	"Natural Language :: Chinese (Simplified)",
 ]
+dependencies = ["httpx", "rich>=13", "click>=8", "platformdirs>=4"]
+dynamic = ["readme", "version"]
+
+[project.optional-dependencies]
+brotli = [
+	"brotli; platform_python_implementation == 'CPython'",
+	"brotlicffi; platform_python_implementation != 'CPython'",
+]
+http2 = ["h2>=3,<5"]
+zstd = ["zstandard>=0.18.0"]
+
+[project.scripts]
+ncmlyrics = "ncmlyrics:main"
 
 [project.urls]
 Homepage = "https://github.com/Puqns67/ncmlyrics"
 Issues = "https://github.com/Puqns67/ncmlyrics/issues"
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [tool.hatch.version]
-path = "src/ncmlyrics/constant.py"
-pattern = "^APP_VERSION = \"(?P<version>[^\"]+)\"$"
+path = "ncmlyrics/__version__.py"
 
 [tool.ruff]
 target-version = "py312"
