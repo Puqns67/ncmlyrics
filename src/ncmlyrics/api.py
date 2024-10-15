@@ -191,11 +191,12 @@ class NCMLyrics:
 
 class NCMApi:
     def __init__(self, http2: bool = True) -> None:
+        self._cookiePath = PLATFORM.user_config_path / "cookies.txt"
         self._cookieJar = MozillaCookieJar()
 
         try:
-            self._cookieJar.load(str(PLATFORM.user_config_path / "cookies.txt"))
-        except FileNotFoundError | LoadError:
+            self._cookieJar.load(str(self._cookiePath))
+        except (FileNotFoundError, LoadError):
             pass
 
         self._httpClient = HttpXClient(
@@ -225,7 +226,7 @@ class NCMApi:
                 raise NCMApiRequestError
 
     def saveCookies(self) -> None:
-        self._cookieJar.save(str(PLATFORM.user_config_path / "cookies.txt"))
+        self._cookieJar.save(str(self._cookiePath))
 
     def getDetailsForTrack(self, trackId: int) -> NCMTrack:
         request = self._httpClient.build_request("GET", "/v3/song/detail", params={"c": f"[{{'id':{trackId}}}]"})
