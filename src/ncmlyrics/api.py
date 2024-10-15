@@ -211,7 +211,7 @@ class NCMApi:
             if retry < 0:
                 retry = 0
 
-            while retry < 0:
+            while retry >= 0:
                 try:
                     return self._httpClient.send(request)
                 except Exception:
