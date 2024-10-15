@@ -10,6 +10,8 @@ from .enum import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
 from .object import NCMTrack
 
+__all__ = ["Link", "parseLink", "testExistTrackSource", "pickOutput"]
+
 RE_ANDROID_ALBUM_SHARE_LINK_PATH = reCompile(r"^/album/(?P<id>\d*)/?$")
 RE_SAFE_FILENAME = reCompile(r"\*{2,}")
 TRANSLATER_SAFE_FILENAME = str.maketrans({i: 0x2A for i in ("<", ">", ":", '"', "/", "\\", "|", "?")})

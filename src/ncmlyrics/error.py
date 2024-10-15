@@ -1,5 +1,16 @@
 from httpx import RequestError
 
+__all__ = [
+    "NCMLyricsAppError",
+    "NCMApiError",
+    "NCMApiRequestError",
+    "NCMApiRetryLimitExceededError",
+    "ObjectParseError",
+    "ParseLinkError",
+    "UnsupportedLinkError",
+    "UnsupportedPureMusicTrackError",
+]
+
 
 class NCMLyricsAppError(Exception):
     """NCMLyrics 错误"""

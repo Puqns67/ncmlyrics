@@ -1,7 +1,5 @@
-from dataclasses import dataclass
 from http.cookiejar import LoadError, MozillaCookieJar
 from json import dumps as dumpJson
-from typing import Iterable
 
 from httpx import Client as HttpXClient
 from httpx import Request as HttpXRequest
@@ -13,6 +11,8 @@ from .error import (
     NCMApiRetryLimitExceededError,
 )
 from .object import NCMAlbum, NCMLyrics, NCMPlaylist, NCMTrack
+
+__all__ = ["NCMApi"]
 
 REQUEST_HEADERS = {
     "Accept": "application/json",

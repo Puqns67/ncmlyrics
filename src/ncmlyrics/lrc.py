@@ -10,7 +10,7 @@ from .enum import LrcMetaType, LrcType
 from .error import UnsupportedPureMusicTrackError
 from .object import NCMLyrics
 
-__all__ = ["LrcType", "LrcMetaType", "Lrc"]
+__all__ = ["Lrc"]
 
 LRC_RE_COMMIT = reCompile(r"^\s*#")
 LRC_RE_META = reCompile(r"^\s*\[(?P<type>ti|ar|al|au|length|by|offset):\s*(?P<content>.+?)\s*\]\s*$")

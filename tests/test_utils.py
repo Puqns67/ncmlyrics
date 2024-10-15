@@ -1,9 +1,10 @@
 from pathlib import Path
 from unittest import TestCase
 
-from ncmlyrics.api import NCMTrack
-from ncmlyrics.error import ParseLinkError, UnsupportLinkError
-from ncmlyrics.util import Link, LinkType, parseLink, pickOutput, testExistTrackSource
+from ncmlyrics.enum import LinkType
+from ncmlyrics.error import ParseLinkError, UnsupportedLinkError
+from ncmlyrics.object import NCMTrack
+from ncmlyrics.util import Link, parseLink, pickOutput, testExistTrackSource
 
 
 class TestUtils(TestCase):
@@ -73,19 +74,19 @@ class TestUtils(TestCase):
 
     def test_parseLink_UnsupportShareLinkError(self):
         self.assertRaises(
-            UnsupportLinkError,
+            UnsupportedLinkError,
             parseLink,
             "https://www.google.com/",
         )
 
         self.assertRaises(
-            UnsupportLinkError,
+            UnsupportedLinkError,
             parseLink,
             "https://music.163.com/unsupport?id=123",
         )
 
         self.assertRaises(
-            UnsupportLinkError,
+            UnsupportedLinkError,
             parseLink,
             "https://music.163.com/album/123a",
         )
