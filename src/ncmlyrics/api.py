@@ -113,4 +113,3 @@ class NCMApi:
 
         request = self._httpClient.build_request("GET", "/song/lyric/v1", params=params)
         return NCMLyrics.fromApi(self._fetch(request)).withId(trackId)
-

@@ -24,8 +24,14 @@ class Lrc:
         # metaType: lrcType: metaContent
         self.metadata: dict[LrcMetaType, dict[LrcType, str]] = {}
 
-        # timestamp: lrcType/String: lrcContent
-        self.lyrics: dict[int, dict[LrcType | str, str]] = {}
+        # timestamp: lrcType: lrcContent
+        self.lyrics: dict[int, dict[LrcType, str]] = {}
+
+        # specials: timestamp/metaType: lrcContent/metaContent
+        self.specials: dict[str, list[tuple[int | LrcMetaType, str]]] = {
+            "metadata": [],
+            "timestamp": [],
+        }
 
     @classmethod
     def fromNCMLyrics(cls, lyrics: NCMLyrics) -> Self:
@@ -53,8 +59,8 @@ class Lrc:
         if LRC_RE_COMMIT.match(lrcRow) is not None:
             return
 
-        # Skip NCM special metadata lines
         if LRC_RE_META_NCM_SPECIAL.match(lrcRow) is not None:
+            self.appendSpecialNCMMetaDataRow(lrcRow)
             return
 
         matchedMetaDataRow = LRC_RE_META.match(lrcRow)
@@ -73,6 +79,23 @@ class Lrc:
                 self.lyrics[timestamp][lrcType] = lyric
             else:
                 self.lyrics[timestamp] = {lrcType: lyric}
+
+    def appendSpecialNCMMetaDataRow(self, lrcRow: str) -> None:
+        try:
+            data = loadJson(lrcRow)
+        except JSONDecodeError:
+            return
+
+        try:
+            key: str = data["c"][0]["tx"]
+            value: str = data["c"][1]["tx"]
+        except KeyError:
+            return
+
+        key = key.strip(" :")
+        value = value.strip()
+
+        self.specials["metadata"].append((LrcMetaType.Author, f"{key}/{value}"))
 
     def appendMatchedMetaDataRow(self, lrcType: LrcType, matchedLine: Match[str]) -> None:
         metaType, metaContent = matchedLine.groups()
@@ -111,20 +134,25 @@ class Lrc:
         return "\n".join(list(self.deserializeLyricRows()))
 
     def deserializeLyricRows(self) -> Generator[str, None, None]:
-        yield from self.generateLyricMetaDataRows()
+        yield from self.generateMetaDataRows()
+        yield from self.generateLyricRows()
 
+    def generateMetaDataRows(self) -> Generator[str, None, None]:
+        for metaType in LrcMetaType:
+            if metaType in self.metadata:
+                for lrcType in self.metadata[metaType].keys():
+                    yield f"[{metaType.value}:{lrcType.pretty()}/{self.metadata[metaType][lrcType]}]"
+
+        for metaType, content in self.specials["metadata"]:
+            yield f"[{metaType.value}:{content}]"
+
+    def generateLyricRows(self) -> Generator[str, None, None]:
         for timestamp in sorted(self.lyrics.keys()):
-            yield from self.generateLyricRows(timestamp)
+            for lrcType in self.lyrics[timestamp].keys():
+                yield self._timestamp2TimeLabel(timestamp) + self.lyrics[timestamp][lrcType]
 
-    def generateLyricMetaDataRows(self) -> Generator[str, None, None]:
-        for type in LrcMetaType:
-            if type in self.metadata:
-                for lrcType in self.metadata[type].keys():
-                    yield f"[{type.value}: {lrcType.pretty()}/{self.metadata[type][lrcType]}]"
-
-    def generateLyricRows(self, timestamp: int) -> Generator[str, None, None]:
-        for lrcType in self.lyrics[timestamp].keys():
-            yield self._timestamp2TimeLabel(timestamp) + self.lyrics[timestamp][lrcType]
+        for timestamp, content in self.specials["timestamp"]:
+            yield self._timestamp2TimeLabel(timestamp) + content
 
     def saveAs(self, path: Path) -> None:
         with path.open("w+") as fs:
