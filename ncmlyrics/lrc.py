@@ -87,12 +87,18 @@ class Lrc:
             return
 
         try:
-            key: str = data["c"][0]["tx"]
-            value: str = data["c"][1]["tx"]
-        except KeyError:
+            match len(data["c"]):
+                case 1:
+                    key, value = data["c"][0]["tx"].replace("：", ":").split(":")
+                case 2:
+                    key = data["c"][0]["tx"]
+                    value = data["c"][1]["tx"]
+                case _:
+                    return
+        except (KeyError, ValueError):
             return
 
-        key = key.strip(" :")
+        key = key.strip(" :：")
         value = value.strip()
 
         self.specials["metadata"].append((LrcMetaType.Author, f"{key}/{value}"))
