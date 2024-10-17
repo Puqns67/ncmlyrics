@@ -12,38 +12,32 @@ from .error import (
 )
 from .object import NCMAlbum, NCMLyrics, NCMPlaylist, NCMTrack
 
-__all__ = ["NCMApi"]
-
-REQUEST_HEADERS = {
-    "Accept": "application/json",
-    "Accept-Encoding": "gzip, deflate",
-    "Connection": "keep-alive",
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
-}
-
 try:
     import brotlicffi as brotli  # type: ignore
 except ImportError:
     try:
-        import brotli  # type: ignore # noqa: F401
+        import brotli
     except ImportError:
-        pass
-    else:
-        REQUEST_HEADERS["Accept-Encoding"] = "br, " + REQUEST_HEADERS["Accept-Encoding"]
-else:
-    REQUEST_HEADERS["Accept-Encoding"] = "br, " + REQUEST_HEADERS["Accept-Encoding"]
+        brotli = None
 
 try:
-    import zstandard  # type: ignore # noqa: F401
+    import zstandard  # type: ignore
 except ImportError:
-    pass
-else:
-    REQUEST_HEADERS["Accept-Encoding"] = "zstd, " + REQUEST_HEADERS["Accept-Encoding"]
+    zstandard = None
 
 try:
     import h2  # type: ignore
 except ImportError:
     h2 = None
+
+__all__ = ["NCMApi"]
+
+REQUEST_HEADERS = {
+    "Accept": "application/json",
+    "Accept-Encoding": f"{"zstd, " if zstandard is not None else ""}{"br, " if brotli is not None else ""}gzip, deflate",
+    "Connection": "keep-alive",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+}
 
 
 class NCMApi:
