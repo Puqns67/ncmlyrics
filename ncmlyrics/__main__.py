@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from pathlib import Path
 
 from click import Path as clickPath
@@ -7,10 +6,10 @@ from rich.console import Console
 from rich.theme import Theme
 
 from .api import NCMApi
+from .app import NCMLyricsApp
 from .enum import LinkType
 from .error import UnsupportedLinkError
 from .lrc import Lrc
-from .object import NCMTrack
 from .util import parseLink, pickOutput
 
 NCMLyricsAppTheme = Theme(
@@ -26,46 +25,13 @@ NCMLyricsAppTheme = Theme(
 )
 
 
-@dataclass
-class NCMLyricsApp:
-    console: Console
-
-    outputs: list[Path]
-    exist: bool
-    overwrite: bool
-    quiet: bool
-
-    tracks: list[tuple[NCMTrack, Path]]
-
-    def addWithPath(self, track: NCMTrack, savePath: Path | None, arrowStyle: str) -> None:
-        if savePath is None:
-            if not self.quiet:
-                self.console.print("--->", style=arrowStyle, end=" ")
-                self.console.print("未能找到源文件，将跳过此曲目。", style="warning")
-        elif not self.overwrite and savePath.exists():
-            if not self.quiet:
-                self.console.print("--->", style=arrowStyle, end=" ")
-                self.console.print("歌词文件已存在，将跳过此曲目。", style="warning")
-        else:
-            self.tracks.append((track, savePath))
-
-    def add(self, track: NCMTrack, arrowStyle: str) -> None:
-        savePath = pickOutput(track, self.outputs, self.exist)
-
-        if not self.quiet:
-            self.console.print("-->", style=arrowStyle, end=" ")
-            self.console.print(f"{"/".join(track.artists)} - {track.name}", style=f"link {track.link()}")
-
-        self.addWithPath(track, savePath, arrowStyle)
-
-
 @command
 @option(
     "-o",
     "--outputs",
     type=clickPath(exists=True, file_okay=False, dir_okay=True, writable=True, path_type=Path),
     multiple=True,
-    help="Output paths, repeating multiple times will automatically match existing audio files in input order and use the last input as a fallback output.",
+    help="输出目录，输出文件名将自动匹配到已经存在的音频文件，重复指定此参数多次以实现回落匹配。",
 )
 @option("-e", "--exist", is_flag=True, help="仅在源文件存在时保存歌词文件。")
 @option("-O", "--overwrite", is_flag=True, help="在歌词文件已存在时重新获取歌词并覆盖写入。")
