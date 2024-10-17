@@ -29,6 +29,6 @@ class LrcMetaType(Enum):
 
 
 class LinkType(Enum):
-    Song = auto()
-    Album = auto()
-    Playlist = auto()
+    Track = "track"
+    Album = "album"
+    Playlist = "playlist"

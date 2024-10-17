@@ -12,7 +12,8 @@ from .object import NCMTrack
 
 __all__ = ["Link", "parseLink", "testExistTrackSource", "pickOutput"]
 
-RE_ANDROID_ALBUM_SHARE_LINK_PATH = reCompile(r"^/album/(?P<id>\d*)/?$")
+RE_SHARE_LINK_ID_BY_PATH = reCompile(r"^/?(?P<id>\d+)$")
+RE_SHARE_LINK_ANDROID_ALBUM_PATH = reCompile(r"^/album/(?P<id>\d+)/?$")
 RE_SAFE_FILENAME = reCompile(r"\*{2,}")
 TRANSLATER_SAFE_FILENAME = str.maketrans({i: 0x2A for i in ("<", ">", ":", '"', "/", "\\", "|", "?")})
 
@@ -28,39 +29,72 @@ def parseLink(url: str) -> Link:
     contentType: LinkType | None = None
     contentId: int | None = None
 
-    match parsedUrl.netloc:
-        case "music.163.com":
-            match parsedUrl.path:
-                case "/playlist" | "/#/playlist":
-                    contentType = LinkType.Playlist
-                case "/album" | "/#/album":
-                    contentType = LinkType.Album
-                case "/song" | "/#/song":
-                    contentType = LinkType.Song
-                case _:
-                    # Hack for android client shared album link
-                    matchedPath = RE_ANDROID_ALBUM_SHARE_LINK_PATH.match(parsedUrl.path)
-                    if matchedPath is not None:
-                        contentType = LinkType.Album
-                        contentId = int(matchedPath["id"])
-                    else:
-                        raise UnsupportedLinkError(parsedUrl)
-        case "y.music.163.com":
-            match parsedUrl.path:
-                case "/m/playlist":
-                    contentType = LinkType.Playlist
-                case "/m/song":
-                    contentType = LinkType.Song
+    match parsedUrl.scheme:
+        case "http" | "https":
+            match parsedUrl.netloc:
+                case "music.163.com":
+                    match parsedUrl.path:
+                        case "/playlist" | "/#/playlist":
+                            contentType = LinkType.Playlist
+                        case "/album" | "/#/album":
+                            contentType = LinkType.Album
+                        case "/song" | "/#/song":
+                            contentType = LinkType.Track
+                        case _:
+                            # Hack for android client shared album link
+                            matchedPath = RE_SHARE_LINK_ANDROID_ALBUM_PATH.match(parsedUrl.path)
+                            if matchedPath is not None:
+                                contentType = LinkType.Album
+                                contentId = int(matchedPath["id"])
+                            else:
+                                raise UnsupportedLinkError(parsedUrl)
+                case "y.music.163.com":
+                    match parsedUrl.path:
+                        case "/m/playlist":
+                            contentType = LinkType.Playlist
+                        case "/m/song":
+                            contentType = LinkType.Track
+                        case _:
+                            raise UnsupportedLinkError(parsedUrl)
+                case "163cn.tv":
+                    response = httpGet(url)
+                    if response.status_code != 302:
+                        raise ParseLinkError(f"未知的 Api 响应: {response.status_code}")
+                    newUrl = response.headers.get("Location")
+                    if newUrl is None:
+                        raise ParseLinkError("Api 未返回重定向结果")
+                    return parseLink(newUrl)
                 case _:
                     raise UnsupportedLinkError(parsedUrl)
-        case "163cn.tv":
-            response = httpGet(url)
-            if response.status_code != 302:
-                raise ParseLinkError(f"未知的 Api 响应: {response.status_code}")
-            newUrl = response.headers.get("Location")
-            if newUrl is None:
-                raise ParseLinkError("Api 未返回重定向结果")
-            return parseLink(newUrl)
+        case "ncmlyrics":  # eg: ncmlyrics://playlist/123456, ncmlyrics://album/12456, ncmlyrics://track/123456
+            try:
+                contentType = LinkType(parsedUrl.netloc)
+            except ValueError:
+                raise UnsupportedLinkError(parsedUrl)
+
+            if parsedUrl.path:
+                matched = RE_SHARE_LINK_ID_BY_PATH.match(parsedUrl.path)
+                if matched is not None:
+                    contentId = int(matched.group("id"))
+            else:
+                raise ParseLinkError
+        case "playlist" | "album" | "track":  # eg: playlist:123456, album:/12456, track://123456
+            try:
+                contentType = LinkType(parsedUrl.scheme)
+            except ValueError:
+                raise UnsupportedLinkError(parsedUrl)
+
+            try:
+                if parsedUrl.netloc:
+                    contentId = int(parsedUrl.netloc)
+                elif parsedUrl.path:
+                    matched = RE_SHARE_LINK_ID_BY_PATH.match(parsedUrl.path)
+                    if matched is not None:
+                        contentId = int(matched.group("id"))
+                else:
+                    raise ParseLinkError
+            except ValueError:
+                raise ParseLinkError
         case _:
             raise UnsupportedLinkError(parsedUrl)
 

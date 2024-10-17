@@ -93,7 +93,7 @@ def main(outputs: list[Path], exist: bool, overwrite: bool, quiet: bool, links: 
             continue
 
         match parsed.type:
-            case LinkType.Song:
+            case LinkType.Track:
                 newTrack = api.getDetailsForTrack(parsed.id)
                 savePath = pickOutput(newTrack, outputs, exist)
 

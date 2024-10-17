@@ -23,7 +23,7 @@ class TestUtils(TestCase):
 
         self.assertEqual(
             parseLink("https://music.163.com/song?id=2621105420"),
-            Link(LinkType.Song, 2621105420),
+            Link(LinkType.Track, 2621105420),
             msg="Shared song from NCM Windows Client",
         )
 
@@ -42,7 +42,7 @@ class TestUtils(TestCase):
 
         self.assertEqual(
             parseLink("https://music.163.com/#/song?id=2621105420"),
-            Link(LinkType.Song, 2621105420),
+            Link(LinkType.Track, 2621105420),
             msg="Song from NCM Website",
         )
 
@@ -61,18 +61,55 @@ class TestUtils(TestCase):
 
         self.assertEqual(
             parseLink("https://y.music.163.com/m/song?id=2604307454"),
-            Link(LinkType.Song, 2604307454),
+            Link(LinkType.Track, 2604307454),
             msg="Shared song from NCM Android Client",
         )
 
     def test_parseLink_302(self):
         self.assertEqual(
             parseLink("http://163cn.tv/xpaQwii"),
-            Link(LinkType.Song, 413077069),
+            Link(LinkType.Track, 413077069),
             msg="Shared song from NCM Android Client player",
         )
 
-    def test_parseLink_UnsupportShareLinkError(self):
+    def test_parseLink_special(self):
+        self.assertEqual(
+            parseLink("ncmlyrics://playlist/123456"),
+            Link(LinkType.Playlist, 123456),
+        )
+
+        self.assertEqual(
+            parseLink("ncmlyrics://album/123456"),
+            Link(LinkType.Album, 123456),
+        )
+
+        self.assertEqual(
+            parseLink("ncmlyrics://track/123456"),
+            Link(LinkType.Track, 123456),
+        )
+
+        self.assertEqual(
+            parseLink("playlist:123456"),
+            Link(LinkType.Playlist, 123456),
+        )
+
+        self.assertEqual(
+            parseLink("album:/123456"),
+            Link(LinkType.Album, 123456),
+        )
+
+        self.assertEqual(
+            parseLink("track://123456"),
+            Link(LinkType.Track, 123456),
+        )
+
+    def test_parseLink_UnsupportedLinkError(self):
+        self.assertRaises(
+            UnsupportedLinkError,
+            parseLink,
+            "ftp://ftpserver.com/",
+        )
+
         self.assertRaises(
             UnsupportedLinkError,
             parseLink,
@@ -91,11 +128,23 @@ class TestUtils(TestCase):
             "https://music.163.com/album/123a",
         )
 
-    def test_parseLink_ParseShareLinkError(self):
+        self.assertRaises(
+            UnsupportedLinkError,
+            parseLink,
+            "ncmlyrics://unsupport/123456",
+        )
+
+    def test_parseLink_ParseLinkError(self):
         self.assertRaises(
             ParseLinkError,
             parseLink,
             "https://music.163.com/playlist?id=123a",
+        )
+
+        self.assertRaises(
+            ParseLinkError,
+            parseLink,
+            "playlist://123456a",
         )
 
     def test_testExistTrackSource(self):
