@@ -118,8 +118,6 @@ def testExistTrackSource(track: NCMTrack, path: Path) -> Path | None:
         return next(globing)
     except StopIteration:
         return None
-    finally:
-        globing.close()
 
 
 def pickOutput(track: NCMTrack, outputs: list[Path], forceSourceExists: bool = False) -> Path | None:
