@@ -28,7 +28,7 @@ class NCMTrack:
 
         data = data.get("songs")
         if data is None:
-            raise ObjectParseError("不存在单曲对应的结构")
+            raise ObjectParseError("不存在单曲对应的结构", data)
 
         result = []
 
@@ -48,8 +48,15 @@ class NCMTrack:
         except KeyError as e:
             raise ObjectParseError(f"需要的键不存在: {e}")
 
+    @property
+    def tracks(self) -> list[Self]:
+        return [self]
+
     def link(self) -> str:
         return f"https://music.163.com/song?id={self.id}"
+
+    def prettyString(self) -> str:
+        return f"{"/".join(self.artists)} - {self.name}"
 
 
 @dataclass

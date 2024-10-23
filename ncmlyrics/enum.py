@@ -8,7 +8,7 @@ class LrcType(Enum):
     Translation = auto()
     Romaji = auto()
 
-    def pretty(self) -> str:
+    def prettyString(self) -> str:
         match self:
             case LrcType.Origin:
                 return "源"

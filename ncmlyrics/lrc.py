@@ -2,7 +2,7 @@ from json import JSONDecodeError
 from json import loads as loadJson
 from pathlib import Path
 from re import Match
-from re import compile as reCompile
+from re import compile as compileRegex
 from typing import Generator, Iterable, Self
 
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
@@ -12,11 +12,11 @@ from .object import NCMLyrics
 
 __all__ = ["Lrc"]
 
-LRC_RE_COMMIT = reCompile(r"^\s*#")
-LRC_RE_META = reCompile(r"^\s*\[(?P<type>ti|ar|al|au|length|by|offset):\s*(?P<content>.+?)\s*\]\s*$")
-LRC_RE_META_NCM_SPECIAL = reCompile(r"^\s*\{.*\}\s*$")
-LRC_RE_LYRIC = reCompile(r"^\s*(?P<timeLabels>(?:\s*\[\d{1,2}:\d{1,2}(?:\.\d{1,3})?\])+)\s*(?P<lyric>.+?)\s*$")
-LRC_RE_LYRIC_TIMELABEL = reCompile(r"\[(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}(?:\.\d{1,3})?)\]")
+LRC_RE_COMMIT = compileRegex(r"^\s*#")
+LRC_RE_META = compileRegex(r"^\s*\[(?P<type>ti|ar|al|au|length|by|offset):\s*(?P<content>.+?)\s*\]\s*$")
+LRC_RE_META_NCM_SPECIAL = compileRegex(r"^\s*\{.*\}\s*$")
+LRC_RE_LYRIC = compileRegex(r"^\s*(?P<timeLabels>(?:\s*\[\d{1,2}:\d{1,2}(?:\.\d{1,3})?\])+)\s*(?P<lyric>.+?)\s*$")
+LRC_RE_LYRIC_TIMELABEL = compileRegex(r"\[(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}(?:\.\d{1,3})?)\]")
 
 
 class Lrc:
@@ -147,7 +147,7 @@ class Lrc:
         for metaType in LrcMetaType:
             if metaType in self.metadata:
                 for lrcType in self.metadata[metaType].keys():
-                    yield f"[{metaType.value}:{lrcType.pretty()}/{self.metadata[metaType][lrcType]}]"
+                    yield f"[{metaType.value}:{lrcType.prettyString()}/{self.metadata[metaType][lrcType]}]"
 
         for metaType, content in self.specials["metadata"]:
             yield f"[{metaType.value}:{content}]"

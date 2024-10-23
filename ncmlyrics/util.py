@@ -1,21 +1,25 @@
 from dataclasses import dataclass
-from pathlib import Path
-from re import compile as reCompile
+from platform import system
+from re import compile as compileRegex
 from urllib.parse import parse_qs as parseQuery
 from urllib.parse import urlparse as parseUrl
 
-from httpx import get as httpGet
+from httpx import get as getHttp
 
 from .enum import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
-from .object import NCMTrack
 
-__all__ = ["Link", "parseLink", "testExistTrackSource", "pickOutput"]
+__all__ = ["Link", "parseLink", "safeFileName"]
 
-RE_SHARE_LINK_ID_BY_PATH = reCompile(r"^/?(?P<id>\d+)$")
-RE_SHARE_LINK_ANDROID_ALBUM_PATH = reCompile(r"^/album/(?P<id>\d+)/?$")
-RE_SAFE_FILENAME = reCompile(r"\*{2,}")
-TRANSLATER_SAFE_FILENAME = str.maketrans({i: 0x2A for i in ("<", ">", ":", '"', "/", "\\", "|", "?")})
+RE_SHARE_LINK_ID_BY_PATH = compileRegex(r"^/?(?P<id>\d+)$")
+RE_SHARE_LINK_ANDROID_ALBUM_PATH = compileRegex(r"^/album/(?P<id>\d+)/?$")
+
+if system() == "Windows":
+    TRANSLATER_SAFE_FILENAME = str.maketrans(
+        {i: 0x5F for i in (0x2F, 0x5C, 0x3A, 0x2A, 0x3F, 0x22, 0x3C, 0x3E, 0x7C)}
+    )  # /, \, :, *, ?, ", <, >, | => _
+else:
+    TRANSLATER_SAFE_FILENAME = str.maketrans({0x2F: 0x5F})  # / => _
 
 
 @dataclass
@@ -57,7 +61,7 @@ def parseLink(url: str) -> Link:
                         case _:
                             raise UnsupportedLinkError(parsedUrl)
                 case "163cn.tv":
-                    response = httpGet(url)
+                    response = getHttp(url)
                     if response.status_code != 302:
                         raise ParseLinkError(f"未知的 Api 响应: {response.status_code}")
                     newUrl = response.headers.get("Location")
@@ -107,34 +111,5 @@ def parseLink(url: str) -> Link:
     return Link(contentType, contentId)
 
 
-def testExistTrackSource(track: NCMTrack, path: Path) -> Path | None:
-    safeFileName = RE_SAFE_FILENAME.sub(
-        "*", f"{"?".join(track.artists[:3])} - {track.name.rstrip(".")}.*".translate(TRANSLATER_SAFE_FILENAME)
-    )
-
-    globing = path.glob(safeFileName, case_sensitive=False)
-
-    try:
-        return next(globing)
-    except StopIteration:
-        return None
-
-
-def pickOutput(track: NCMTrack, outputs: list[Path], forceSourceExists: bool = False) -> Path | None:
-    match len(outputs):
-        case 0:
-            result = testExistTrackSource(track, Path())
-            if result is not None:
-                return result.with_suffix(".lrc")
-            return None if forceSourceExists else Path(f"{",".join(track.artists)} - {track.name}.lrc")
-        case 1:
-            result = testExistTrackSource(track, outputs[0])
-            if result is not None:
-                return result.with_suffix(".lrc")
-            return None if forceSourceExists else outputs[0] / f"{",".join(track.artists)} - {track.name}.lrc"
-        case _:
-            for output in outputs:
-                result = testExistTrackSource(track, output)
-                if result is not None:
-                    return result.with_suffix(".lrc")
-            return None if forceSourceExists else outputs[-1] / f"{",".join(track.artists)} - {track.name}.lrc"
+def safeFileName(filename: str) -> str:
+    return filename.translate(TRANSLATER_SAFE_FILENAME)

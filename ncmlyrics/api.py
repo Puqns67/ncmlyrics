@@ -58,7 +58,7 @@ class NCMApi:
         )
 
     def _fetch(self, request: HttpXRequest, retry: int | None = 4) -> HttpXResponse:
-        if retry:  # None => Disable retry
+        if retry is not None:  # None => Disable retry
             if retry < 0:
                 retry = 0
 

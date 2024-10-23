@@ -1,40 +1,210 @@
-from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import wait as waitFuture
 from pathlib import Path
+from re import Pattern
+from re import compile as compileRegex
+from re import escape as escapeRegex
+from typing import Any, Generator, Iterable
 
+from click import confirm
 from rich.console import Console
+from rich.progress import Progress, TaskID
+from rich.theme import Theme
 
-from .object import NCMTrack
-from .util import pickOutput
+from .api import NCMApi
+from .enum import LinkType
+from .error import ParseLinkError, UnsupportedLinkError
+from .lrc import Lrc
+from .object import NCMAlbum, NCMPlaylist, NCMTrack
+from .util import parseLink, safeFileName
+
+__all__ = ["NCMLyricsApp"]
+
+NCMLyricsAppTheme = Theme(
+    {
+        "tracktitle": "bold chartreuse1",
+        "trackarrow": "chartreuse3",
+        "albumtitle": "bold orchid1",
+        "albumarrow": "orchid2",
+        "playlisttitle": "bold aquamarine1",
+        "playlistarrow": "aquamarine3",
+        "info": "",
+        "warning": "orange1",
+        "error": "bold red1",
+    }
+)
 
 
-@dataclass
 class NCMLyricsApp:
-    console: Console
+    def __init__(self, exist: bool, overwrite: bool, quiet: bool, outputs: list[Path], links: list[str]) -> None:
+        self.console = Console(theme=NCMLyricsAppTheme, highlight=False)
+        self.progress = Progress(console=self.console)
+        self.pool = ThreadPoolExecutor(max_workers=4)
 
-    outputs: list[Path]
-    exist: bool
-    overwrite: bool
-    quiet: bool
+        self.api = NCMApi()
 
-    tracks: list[tuple[NCMTrack, Path]]
-
-    def addWithPath(self, track: NCMTrack, savePath: Path | None, arrowStyle: str) -> None:
-        if savePath is None:
-            if not self.quiet:
-                self.console.print("--->", style=arrowStyle, end=" ")
-                self.console.print("未能找到源文件，将跳过此曲目。", style="warning")
-        elif not self.overwrite and savePath.exists():
-            if not self.quiet:
-                self.console.print("--->", style=arrowStyle, end=" ")
-                self.console.print("歌词文件已存在，将跳过此曲目。", style="warning")
+        self.exist = exist
+        self.overwrite = overwrite
+        self.quiet = quiet
+        if len(outputs) == 0:
+            self.outputs = [Path()]
         else:
-            self.tracks.append((track, savePath))
+            self.outputs = outputs
 
-    def add(self, track: NCMTrack, arrowStyle: str) -> None:
-        savePath = pickOutput(track, self.outputs, self.exist)
+        self.links = links
+
+        self.tasks: list[NCMTrack | NCMAlbum | NCMPlaylist] = []
+        self.tracks: list[NCMTrack] = []
+        self.trackPairs: list[tuple[NCMTrack, Path | None]] = []
+
+        self.existedTargets: list[Path] = []
+
+    def run(self) -> None:
+        if len(self.links) == 0:
+            self.console.print(
+                "请给出至少一个链接以解析曲目以获取其歌词！支持输入单曲，专辑与歌单的分享或网页链接。", style="error"
+            )
+            return
+
+        progressId = self.progress.add_task("解析链接", total=len(self.links))
+        self.progress.start()
+
+        for task in self.pool.map(self.resolveLink, self._repeat(progressId), self.links):
+            self.tasks.append(task)
+            self.tracks.extend(task.tracks)
 
         if not self.quiet:
-            self.console.print("-->", style=arrowStyle, end=" ")
-            self.console.print(f"{"/".join(track.artists)} - {track.name}", style=f"link {track.link()}")
+            self.progress.stop()
+            self.printTasks()
+            if not confirm("继续操作？", default=True):
+                self.console.print("任务已取消。", style="info")
+                return
 
-        self.addWithPath(track, savePath, arrowStyle)
+        self.progress.reset(progressId, description="获取已存在的歌曲列表", total=1)
+
+        if not self.quiet:
+            self.progress.start()
+        self.walkOutputs()
+        self.progress.advance(progressId)
+
+        self.progress.reset(progressId, description="解析保存路径", total=len(self.tracks))
+
+        for trackPair in self.pool.map(self.resolvePath, self._repeat(progressId), self.tracks):
+            self.trackPairs.append(trackPair)
+
+        self.progress.reset(progressId, description="输出 Lrc 文件", total=len(self.trackPairs))
+
+        waitFuture((self.pool.submit(self.exportLrc, progressId, *trackPair) for trackPair in self.trackPairs))
+
+        self.progress.stop()
+        self.api.saveCookies()
+
+    def printTasks(self):
+        def printTracks(tracks: Iterable[NCMTrack], arrowStyle: str | None = None) -> None:
+            for track in tracks:
+                self.console.print(
+                    f"[{arrowStyle}]-->[/{arrowStyle}] [link={track.link()}]{track.prettyString()}[/link]"
+                )
+
+        for task in self.tasks:
+            match task:
+                case NCMTrack():
+                    self.console.print(
+                        f"[tracktitle]-- 单曲 -->[/tracktitle] [link={task.link()}]{task.prettyString()}[/link]"
+                    )
+                case NCMAlbum():
+                    self.console.print(f"[albumtitle]== 专辑 ==>[/albumtitle] [link={task.link()}]{task.name}[/link]")
+                    printTracks(task.tracks, "albumarrow")
+                case NCMPlaylist():
+                    self.console.print(
+                        f"[playlisttitle]== 歌单 ==>[/playlisttitle] [link={task.link()}]{task.name}[/link]"
+                    )
+                    printTracks(task.tracks, "playlistarrow")
+
+    def walkOutputs(self):
+        for output in self.outputs:
+            output = output.absolute()
+            if not output.exists() or not output.is_dir():
+                continue
+            for content in output.iterdir():
+                if not content.is_file():
+                    continue
+                if content.suffix in (".ncm", ".mp3", ".flac"):
+                    self.existedTargets.append(content)
+
+    def resolveLink(self, progress: TaskID, link: str) -> NCMTrack | NCMAlbum | NCMPlaylist:
+        try:
+            parsed = parseLink(link)
+        except UnsupportedLinkError:
+            self.console.print(f"不支持的链接：{link}", style="error")
+            return
+        except ParseLinkError:
+            self.console.print_exception()
+            self.console.print(f"解析链接时出现错误：{link}", style="error")
+            return
+
+        match parsed.type:
+            case LinkType.Track:
+                result = self.api.getDetailsForTrack(parsed.id)
+            case LinkType.Album:
+                result = self.api.getDetailsForAlbum(parsed.id)
+            case LinkType.Playlist:
+                result = self.api.getDetailsForPlaylist(parsed.id)
+                result.fillDetailsOfTracks(self.api)
+
+        self.progress.advance(progress)
+        return result
+
+    def resolvePath(self, progress: TaskID, track: NCMTrack) -> tuple[NCMTrack, Path | None]:
+        regex: Pattern[str] | None = None
+        targetLrc: Path | None = None
+
+        for target in self.existedTargets:
+            if regex is None:
+                # "(?:," + ")?(?:,".join((escapeRegex(artist) for artist in track.artists[3:])) + ")?"
+                regex = compileRegex(
+                    rf"^{escapeRegex(",".join(track.artists[:3])).replace(",", "(?:,| )")} - {escapeRegex(track.name.rstrip("."))}.+(ncm|mp3|flac)$"
+                )
+            matched = regex.match(target.name)
+            if matched is not None:
+                targetLrc = target.with_suffix(".lrc")
+                break
+
+        self.progress.advance(progress)
+
+        if targetLrc is None:
+            if self.exist:
+                return (track, None)
+            else:
+                targetLrc = self.outputs[-1] / safeFileName(f"{",".join(track.artists)} - {track.name}.lrc")
+
+        if not self.overwrite and targetLrc.exists():
+            return (track, None)
+        return (track, targetLrc)
+
+    def exportLrc(self, progress: TaskID, track: NCMTrack, path: Path | None) -> None:
+        if path is None:
+            self.console.print(
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[dark_turquoise] [warning]对应的歌词文件已存在, 跳过此曲目。[/warning]"
+            )
+            self.progress.advance(progress)
+            return
+
+        ncmlyrics = self.api.getLyricsByTrack(track.id)
+        if ncmlyrics.isPureMusic:
+            self.console.print(
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]为纯音乐, 跳过此曲目。[/warning]"
+            )
+        else:
+            if not self.quiet:
+                self.console.print(
+                    f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [info]{str(path)}[/info]"
+                )
+            Lrc.fromNCMLyrics(ncmlyrics).saveAs(path)
+
+        self.progress.advance(progress)
+
+    @staticmethod
+    def _repeat(content: Any) -> Generator[Any, None, None]:
+        while True:
+            yield content
