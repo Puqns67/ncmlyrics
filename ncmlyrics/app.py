@@ -36,7 +36,9 @@ NCMLyricsAppTheme = Theme(
 
 
 class NCMLyricsApp:
-    def __init__(self, exist: bool, overwrite: bool, quiet: bool, outputs: list[Path], links: list[str]) -> None:
+    def __init__(
+        self, exist: bool, overwrite: bool, noPureMusic: bool, quiet: bool, outputs: list[Path], links: list[str]
+    ) -> None:
         self.console = Console(theme=NCMLyricsAppTheme, highlight=False)
         self.progress = Progress(console=self.console)
         self.pool = ThreadPoolExecutor(max_workers=4)
@@ -45,6 +47,7 @@ class NCMLyricsApp:
 
         self.exist = exist
         self.overwrite = overwrite
+        self.noPureMusic = noPureMusic
         self.quiet = quiet
         if len(outputs) == 0:
             self.outputs = [Path()]
@@ -206,7 +209,7 @@ class NCMLyricsApp:
             return
 
         ncmlyrics = self.api.getLyricsByTrack(track.id)
-        if ncmlyrics.isPureMusic:
+        if ncmlyrics.isPureMusic and self.noPureMusic:
             self.console.print(
                 f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]为纯音乐, 跳过此曲目。[/warning]"
             )

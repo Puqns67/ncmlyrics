@@ -8,7 +8,6 @@ __all__ = [
     "ObjectParseError",
     "ParseLinkError",
     "UnsupportedLinkError",
-    "UnsupportedPureMusicTrackError",
 ]
 
 
@@ -38,7 +37,3 @@ class ParseLinkError(NCMLyricsAppError):
 
 class UnsupportedLinkError(NCMLyricsAppError):
     """不支持的分享链接"""
-
-
-class UnsupportedPureMusicTrackError(NCMLyricsAppError):
-    """不支持纯音乐单曲"""

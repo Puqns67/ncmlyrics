@@ -16,13 +16,16 @@ from .app import NCMLyricsApp
 )
 @option("-e", "--exist", is_flag=True, help="仅在源文件存在时保存歌词文件。")
 @option("-O", "--overwrite", is_flag=True, help="在歌词文件已存在时重新获取歌词并覆盖写入。")
+@option("-n", "--no-pure-music", is_flag=True, help="不为纯音乐曲目保存歌词文件。")
 @option("-q", "--quiet", is_flag=True, help="不进行任何提示并跳过所有确认。")
 @argument(
     "links",
     nargs=-1,
 )
-def main(exist: bool, overwrite: bool, quiet: bool, outputs: list[Path], links: list[str]) -> None:
-    NCMLyricsApp(exist=exist, overwrite=overwrite, quiet=quiet, outputs=outputs, links=links).run()
+def main(exist: bool, overwrite: bool, no_pure_music: bool, quiet: bool, outputs: list[Path], links: list[str]) -> None:
+    NCMLyricsApp(
+        exist=exist, overwrite=overwrite, noPureMusic=no_pure_music, quiet=quiet, outputs=outputs, links=links
+    ).run()
 
 
 if __name__ == "__main__":

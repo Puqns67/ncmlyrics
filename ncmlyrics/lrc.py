@@ -7,7 +7,6 @@ from typing import Generator, Iterable, Self
 
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
 from .type import LrcMetaType, LrcType
-from .error import UnsupportedPureMusicTrackError
 from .object import NCMLyrics
 
 __all__ = ["Lrc"]
@@ -35,9 +34,6 @@ class Lrc:
 
     @classmethod
     def fromNCMLyrics(cls, lyrics: NCMLyrics) -> Self:
-        if lyrics.isPureMusic:
-            raise UnsupportedPureMusicTrackError
-
         result = cls()
 
         for lrcType in LrcType:
