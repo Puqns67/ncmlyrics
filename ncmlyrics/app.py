@@ -57,7 +57,8 @@ class NCMLyricsApp:
         self.tracks: list[NCMTrack] = []
         self.trackPairs: list[tuple[NCMTrack, Path | None]] = []
 
-        self.existedTargets: list[Path] = []
+        self.existingFiles: list[Path] = []
+        self.existingFilesByPrefix: dict[str, list[Path]] = {}
 
     def run(self) -> None:
         if len(self.links) == 0:
@@ -130,7 +131,12 @@ class NCMLyricsApp:
                 if not content.is_file():
                     continue
                 if content.suffix in (".ncm", ".mp3", ".flac"):
-                    self.existedTargets.append(content)
+                    self.existingFiles.append(content)
+                    prefix = content.name[0]
+                    if prefix in self.existingFilesByPrefix:
+                        self.existingFilesByPrefix[prefix].append(content)
+                    else:
+                        self.existingFilesByPrefix[prefix] = [content]
 
     def resolveLink(self, progress: TaskID, link: str) -> NCMTrack | NCMAlbum | NCMPlaylist:
         try:
@@ -157,35 +163,44 @@ class NCMLyricsApp:
 
     def resolvePath(self, progress: TaskID, track: NCMTrack) -> tuple[NCMTrack, Path | None]:
         regex: Pattern[str] | None = None
-        targetLrc: Path | None = None
+        targetPath: Path | None = None
 
-        for target in self.existedTargets:
+        # If not in prefix then search all existing files
+        existingFiles = self.existingFilesByPrefix.get(track.artists[0][0], self.existingFiles)
+
+        for existingFile in existingFiles:
             if regex is None:
-                # "(?:," + ")?(?:,".join((escapeRegex(artist) for artist in track.artists[3:])) + ")?"
-                regex = compileRegex(
-                    rf"^{escapeRegex(",".join(track.artists[:3])).replace(",", "(?:,| )")} - {escapeRegex(track.name.rstrip("."))}.+(ncm|mp3|flac)$"
-                )
-            matched = regex.match(target.name)
+                escapedArtists = "(,| )".join((escapeRegex(artist) for artist in track.artists[:3]))
+                if len(track.artists) > 3:
+                    escapedArtists += (
+                        rf"((,| ){")?((,| )".join((escapeRegex(artist) for artist in track.artists[3:]))})?"
+                    )
+                regex = compileRegex(rf"^{escapedArtists} - {escapeRegex(track.name.rstrip("."))}\.+(ncm|mp3|flac)$")
+            matched = regex.match(existingFile.name)
             if matched is not None:
-                targetLrc = target.with_suffix(".lrc")
+                targetPath = existingFile.with_suffix(".lrc")
                 break
 
         self.progress.advance(progress)
 
-        if targetLrc is None:
+        if targetPath is None:
             if self.exist:
                 return (track, None)
             else:
-                targetLrc = self.outputs[-1] / safeFileName(f"{",".join(track.artists)} - {track.name}.lrc")
+                targetPath = self.outputs[-1] / safeFileName(f"{",".join(track.artists)} - {track.name}.lrc")
 
-        if not self.overwrite and targetLrc.exists():
-            return (track, None)
-        return (track, targetLrc)
+        return (track, targetPath)
 
     def exportLrc(self, progress: TaskID, track: NCMTrack, path: Path | None) -> None:
         if path is None:
             self.console.print(
-                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[dark_turquoise] [warning]对应的歌词文件已存在, 跳过此曲目。[/warning]"
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[dark_turquoise] [warning]找不到对应的源文件, 跳过此曲目。[/warning]"
+            )
+            self.progress.advance(progress)
+            return
+        elif not self.overwrite and path.exists():
+            self.console.print(
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]对应的歌词文件已存在, 跳过此曲目。[/warning]"
             )
             self.progress.advance(progress)
             return
