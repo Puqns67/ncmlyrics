@@ -157,20 +157,11 @@ class NCMLyrics:
 
         lyrics: dict[LrcType, str] = {}
 
-        try:
-            lyrics[LrcType.Origin] = data["lrc"]["lyric"]
-        except KeyError:
-            pass
-
-        try:
-            lyrics[LrcType.Translation] = data["tlyric"]["lyric"]
-        except KeyError:
-            pass
-
-        try:
-            lyrics[LrcType.Romaji] = data["romalrc"]["lyric"]
-        except KeyError:
-            pass
+        for lrctype in LrcType:
+            try:
+                lyrics[lrctype] = data[lrctype.ncmAPIString()]["lyric"]
+            except KeyError:
+                pass
 
         return cls(
             id=None,

@@ -1,9 +1,9 @@
-from enum import Enum, auto
+from enum import StrEnum, auto
 
 __all__ = ["LrcType", "LrcMetaType", "LinkType"]
 
 
-class LrcType(Enum):
+class LrcType(StrEnum):
     Origin = auto()
     Translation = auto()
     Romaji = auto()
@@ -17,18 +17,27 @@ class LrcType(Enum):
             case LrcType.Romaji:
                 return "音"
 
+    def ncmAPIString(self) -> str:
+        match self:
+            case LrcType.Origin:
+                return "lrc"
+            case LrcType.Translation:
+                return "tlyric"
+            case LrcType.Romaji:
+                return "romalrc"
 
-class LrcMetaType(Enum):
+
+class LrcMetaType(StrEnum):
     Title = "ti"
     Artist = "ar"
     Album = "al"
     Author = "au"
     Length = "length"
-    LrcAuthor = "by"
+    Author = "by"
     Offset = "offset"
 
 
-class LinkType(Enum):
-    Track = "track"
-    Album = "album"
-    Playlist = "playlist"
+class LinkType(StrEnum):
+    Track = auto()
+    Album = auto()
+    Playlist = auto()
