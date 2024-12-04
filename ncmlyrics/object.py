@@ -4,7 +4,7 @@ from typing import Self
 
 from httpx import Response
 
-from .enum import LrcType
+from .type import LrcType
 from .error import ObjectParseError
 
 __all__ = ["NCMTrack", "NCMAlbum", "NCMPlaylist", "NCMLyrics"]

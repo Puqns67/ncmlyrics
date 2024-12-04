@@ -12,7 +12,7 @@ from rich.progress import Progress, TaskID
 from rich.theme import Theme
 
 from .api import NCMApi
-from .enum import LinkType
+from .type import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
 from .lrc import Lrc
 from .object import NCMAlbum, NCMPlaylist, NCMTrack

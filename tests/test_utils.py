@@ -1,7 +1,7 @@
 from pathlib import Path
 from unittest import TestCase
 
-from ncmlyrics.enum import LinkType
+from ncmlyrics.type import LinkType
 from ncmlyrics.error import ParseLinkError, UnsupportedLinkError
 from ncmlyrics.object import NCMTrack
 from ncmlyrics.util import Link, parseLink, pickOutput, testExistTrackSource

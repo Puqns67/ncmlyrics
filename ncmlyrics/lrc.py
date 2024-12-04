@@ -6,7 +6,7 @@ from re import compile as compileRegex
 from typing import Generator, Iterable, Self
 
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
-from .enum import LrcMetaType, LrcType
+from .type import LrcMetaType, LrcType
 from .error import UnsupportedPureMusicTrackError
 from .object import NCMLyrics
 

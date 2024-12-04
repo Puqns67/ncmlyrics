@@ -33,7 +33,7 @@ class LrcMetaType(StrEnum):
     Album = "al"
     Author = "au"
     Length = "length"
-    Author = "by"
+    LrcAuthor = "by"
     Offset = "offset"
 
 

@@ -6,7 +6,7 @@ from urllib.parse import urlparse as parseUrl
 
 from httpx import get as getHttp
 
-from .enum import LinkType
+from .type import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
 
 __all__ = ["Link", "parseLink", "safeFileName"]
