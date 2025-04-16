@@ -1,13 +1,15 @@
+from collections.abc import Generator, Iterable
+from dataclasses import dataclass, field
 from json import JSONDecodeError
 from json import loads as loadJson
 from pathlib import Path
 from re import Match
 from re import compile as compileRegex
-from typing import Generator, Iterable, Self
+from typing import Self
 
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
-from .type import LrcMetaType, LrcType
 from .object import NCMLyrics
+from .type import LrcMetaType, LrcType
 
 __all__ = ["Lrc"]
 
@@ -16,6 +18,12 @@ LRC_RE_META = compileRegex(r"^\s*\[(?P<type>ti|ar|al|au|length|by|offset):\s*(?P
 LRC_RE_META_NCM_SPECIAL = compileRegex(r"^\s*\{.*\}\s*$")
 LRC_RE_LYRIC = compileRegex(r"^\s*(?P<timeLabels>(?:\s*\[\d{1,2}:\d{1,2}(?:\.\d{1,3})?\])+)\s*(?P<lyric>.+?)\s*$")
 LRC_RE_LYRIC_TIMELABEL = compileRegex(r"\[(?P<minutes>\d{1,2}):(?P<seconds>\d{1,2}(?:\.\d{1,3})?)\]")
+
+
+@dataclass
+class LrcSpecials:
+    metadata: list[tuple[LrcMetaType, str]] = field(default_factory=list)
+    timestamp: list[tuple[int, str]] = field(default_factory=list)
 
 
 class Lrc:
@@ -27,10 +35,7 @@ class Lrc:
         self.lyrics: dict[int, dict[LrcType, str]] = {}
 
         # specials: timestamp/metaType: lrcContent/metaContent
-        self.specials: dict[str, list[tuple[int | LrcMetaType, str]]] = {
-            "metadata": [],
-            "timestamp": [],
-        }
+        self.specials: LrcSpecials = LrcSpecials()
 
     @classmethod
     def fromNCMLyrics(cls, lyrics: NCMLyrics) -> Self:
@@ -97,7 +102,7 @@ class Lrc:
         key = key.strip(" :：")
         value = value.strip()
 
-        self.specials["metadata"].append((LrcMetaType.Author, f"{key}/{value}"))
+        self.specials.metadata.append((LrcMetaType.Author, f"{key}/{value}"))
 
     def appendMatchedMetaDataRow(self, lrcType: LrcType, matchedLine: Match[str]) -> None:
         metaType, metaContent = matchedLine.groups()
@@ -145,7 +150,7 @@ class Lrc:
                 for lrcType in self.metadata[metaType].keys():
                     yield f"[{metaType.value}:{lrcType.prettyString()}/{self.metadata[metaType][lrcType]}]"
 
-        for metaType, content in self.specials["metadata"]:
+        for metaType, content in self.specials.metadata:
             yield f"[{metaType.value}:{content}]"
 
     def generateLyricRows(self) -> Generator[str, None, None]:
@@ -153,7 +158,7 @@ class Lrc:
             for lrcType in self.lyrics[timestamp].keys():
                 yield self._timestamp2TimeLabel(timestamp) + self.lyrics[timestamp][lrcType]
 
-        for timestamp, content in self.specials["timestamp"]:
+        for timestamp, content in self.specials.timestamp:
             yield self._timestamp2TimeLabel(timestamp) + content
 
     def saveAs(self, path: Path) -> None:
@@ -170,7 +175,7 @@ class Lrc:
     @staticmethod
     def _timestamp2TimeLabel(timestamp: int) -> str:
         seconds = timestamp / 1000
-        return f"[{seconds//60:02.0f}:{seconds%60:06.3f}]"
+        return f"[{seconds // 60:02.0f}:{seconds % 60:06.3f}]"
 
     def _mergeOffset(self, timestamp: int) -> int:
         result = timestamp

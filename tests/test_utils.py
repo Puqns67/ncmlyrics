@@ -1,14 +1,12 @@
-from pathlib import Path
 from unittest import TestCase
 
-from ncmlyrics.type import LinkType
 from ncmlyrics.error import ParseLinkError, UnsupportedLinkError
-from ncmlyrics.object import NCMTrack
-from ncmlyrics.util import Link, parseLink, pickOutput, testExistTrackSource
+from ncmlyrics.type import LinkType
+from ncmlyrics.util import Link, parseLink
 
 
 class TestUtils(TestCase):
-    def test_parseLink_Windows(self):
+    def test_parseLink_Windows(self) -> None:
         self.assertEqual(
             parseLink("https://music.163.com/playlist?id=444817519"),
             Link(LinkType.Playlist, 444817519),
@@ -27,7 +25,7 @@ class TestUtils(TestCase):
             msg="Shared song from NCM Windows Client",
         )
 
-    def test_parseLink_Website(self):
+    def test_parseLink_Website(self) -> None:
         self.assertEqual(
             parseLink("https://music.163.com/#/playlist?id=444817519"),
             Link(LinkType.Playlist, 444817519),
@@ -46,7 +44,7 @@ class TestUtils(TestCase):
             msg="Song from NCM Website",
         )
 
-    def test_parseLink_Android(self):
+    def test_parseLink_Android(self) -> None:
         self.assertEqual(
             parseLink("https://y.music.163.com/m/playlist?id=2224276126"),
             Link(LinkType.Playlist, 2224276126),
@@ -65,14 +63,14 @@ class TestUtils(TestCase):
             msg="Shared song from NCM Android Client",
         )
 
-    def test_parseLink_302(self):
+    def test_parseLink_302(self) -> None:
         self.assertEqual(
             parseLink("http://163cn.tv/xpaQwii"),
             Link(LinkType.Track, 413077069),
             msg="Shared song from NCM Android Client player",
         )
 
-    def test_parseLink_special(self):
+    def test_parseLink_special(self) -> None:
         self.assertEqual(
             parseLink("ncmlyrics://playlist/123456"),
             Link(LinkType.Playlist, 123456),
@@ -103,7 +101,7 @@ class TestUtils(TestCase):
             Link(LinkType.Track, 123456),
         )
 
-    def test_parseLink_UnsupportedLinkError(self):
+    def test_parseLink_UnsupportedLinkError(self) -> None:
         self.assertRaises(
             UnsupportedLinkError,
             parseLink,
@@ -134,7 +132,7 @@ class TestUtils(TestCase):
             "ncmlyrics://unsupport/123456",
         )
 
-    def test_parseLink_ParseLinkError(self):
+    def test_parseLink_ParseLinkError(self) -> None:
         self.assertRaises(
             ParseLinkError,
             parseLink,
@@ -145,65 +143,4 @@ class TestUtils(TestCase):
             ParseLinkError,
             parseLink,
             "playlist://123456a",
-        )
-
-    def test_testExistTrackSource(self):
-        resources = Path("tests/resource/util/testExistTrackSource")
-
-        self.assertEqual(
-            testExistTrackSource(NCMTrack(0, "Mp3Name", ["Mp3Artist"]), resources),
-            resources / "Mp3Artist - Mp3Name.mp3",
-        )
-
-        self.assertEqual(
-            testExistTrackSource(NCMTrack(0, "Mp3Name", ["Mp3Artist1", "Mp3Artist2"]), resources),
-            resources / "Mp3Artist1,Mp3Artist2 - Mp3Name.mp3",
-        )
-
-        self.assertEqual(
-            testExistTrackSource(NCMTrack(0, "FlacName", ["FlacArtist1", "FlacArtist2"]), resources),
-            resources / "FlacArtist1 FlacArtist2 - FlacName.flac",
-        )
-
-        self.assertEqual(
-            testExistTrackSource(NCMTrack(0, "NcmNameWith.", ["NcmArtistWith."]), resources),
-            resources / "NcmArtistWith. - NcmNameWith..ncm",
-        )
-
-    def test_pickOutput(self):
-        resources = Path("tests/resource/util/pickOutput")
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack", ["testArtist"]), []),
-            Path("testArtist - testTrack.lrc"),
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack", ["testArtist"]), [resources / "1"]),
-            resources / "1" / "testArtist - testTrack.lrc",
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack1", ["testArtist"]), [resources / "1", resources / "2"]),
-            resources / "1" / "testArtist - testTrack1.lrc",
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack2", ["testArtist"]), [resources / "1", resources / "2"]),
-            resources / "2" / "testArtist - testTrack2.lrc",
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack1", ["testArtist"]), [resources / "2", resources / "1"]),
-            resources / "1" / "testArtist - testTrack1.lrc",
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, str(), [str()]), [], True),
-            None,
-        )
-
-        self.assertEqual(
-            pickOutput(NCMTrack(0, "testTrack0", ["testArtist"]), [resources / "1"], True),
-            None,
         )

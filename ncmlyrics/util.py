@@ -6,8 +6,8 @@ from urllib.parse import urlparse as parseUrl
 
 from httpx import get as getHttp
 
-from .type import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
+from .type import LinkType
 
 __all__ = ["Link", "parseLink", "safeFileName"]
 
@@ -16,7 +16,7 @@ RE_SHARE_LINK_ANDROID_ALBUM_PATH = compileRegex(r"^/album/(?P<id>\d+)/?$")
 
 if system() == "Windows":
     TRANSLATER_SAFE_FILENAME = str.maketrans(
-        {i: 0x5F for i in (0x2F, 0x5C, 0x3A, 0x2A, 0x3F, 0x22, 0x3C, 0x3E, 0x7C)}
+        dict.fromkeys((0x2F, 0x5C, 0x3A, 0x2A, 0x3F, 0x22, 0x3C, 0x3E, 0x7C), 0x5F),
     )  # /, \, :, *, ?, ", <, >, | => _
 else:
     TRANSLATER_SAFE_FILENAME = str.maketrans({0x2F: 0x5F})  # / => _
@@ -104,9 +104,12 @@ def parseLink(url: str) -> Link:
 
     if contentId is None:
         try:
-            contentId = int(parseQuery(parsedUrl.query).get("id")[0])
-        except Exception:
-            raise ParseLinkError
+            rawId = parseQuery(parsedUrl.query)["id"][0]
+            contentId = int(rawId)
+        except KeyError:
+            raise ParseLinkError(f"链接中无 ID 参数：{url}")
+        except ValueError:
+            raise ParseLinkError(f"无法转换 ID 为 数字：{url}")
 
     return Link(contentType, contentId)
 

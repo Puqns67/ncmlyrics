@@ -1,13 +1,13 @@
 from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Self
+from typing import Any, Self
 
 from httpx import Response
 
-from .type import LrcType
 from .error import ObjectParseError
+from .type import LrcType
 
-__all__ = ["NCMTrack", "NCMAlbum", "NCMPlaylist", "NCMLyrics"]
+__all__ = ["NCMAlbum", "NCMLyrics", "NCMPlaylist", "NCMTrack"]
 
 
 @dataclass
@@ -19,20 +19,20 @@ class NCMTrack:
     @classmethod
     def fromApi(cls, response: Response) -> list[Self]:
         try:
-            data: dict = response.json()
+            data: dict[str, Any] = response.json()
         except JSONDecodeError:
             raise ObjectParseError("无法以预期的 Json 格式解析响应")
 
         if data.get("code") != 200:
-            raise ObjectParseError(f"响应码不为 200: {data["code"]}")
+            raise ObjectParseError(f"响应码不为 200: {data['code']}")
 
-        data = data.get("songs")
-        if data is None:
+        tracks = data.get("songs")
+        if tracks is None:
             raise ObjectParseError("不存在单曲对应的结构", data)
 
         result = []
 
-        for track in data:
+        for track in tracks:
             result.append(cls.fromData(track))
 
         return result
@@ -56,7 +56,7 @@ class NCMTrack:
         return f"https://music.163.com/song?id={self.id}"
 
     def prettyString(self) -> str:
-        return f"{"/".join(self.artists)} - {self.name}"
+        return f"{'/'.join(self.artists)} - {self.name}"
 
 
 @dataclass
@@ -73,7 +73,7 @@ class NCMAlbum:
             raise ObjectParseError("无法以预期的 Json 格式解析响应")
 
         if data.get("code") != 200:
-            raise ObjectParseError(f"响应码不为 200: {data["code"]}")
+            raise ObjectParseError(f"响应码不为 200: {data['code']}")
 
         album = data.get("album")
         if album is None:
@@ -107,7 +107,7 @@ class NCMPlaylist:
             raise ObjectParseError("无法以预期的 Json 格式解析响应")
 
         if data.get("code") != 200:
-            raise ObjectParseError(f"响应码不为 200: {data["code"]}")
+            raise ObjectParseError(f"响应码不为 200: {data['code']}")
 
         playlist = data.get("playlist")
         if playlist is None:
@@ -153,7 +153,7 @@ class NCMLyrics:
             raise ObjectParseError("无法以预期的 Json 格式解析响应")
 
         if data.get("code") != 200:
-            raise ObjectParseError(f"响应码不为 200: {data["code"]}")
+            raise ObjectParseError(f"响应码不为 200: {data['code']}")
 
         lyrics: dict[LrcType, str] = {}
 

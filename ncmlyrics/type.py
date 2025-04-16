@@ -1,6 +1,6 @@
 from enum import StrEnum, auto
 
-__all__ = ["LrcType", "LrcMetaType", "LinkType"]
+__all__ = ["LinkType", "LrcMetaType", "LrcType"]
 
 
 class LrcType(StrEnum):

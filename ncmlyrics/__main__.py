@@ -24,7 +24,12 @@ from .app import NCMLyricsApp
 )
 def main(exist: bool, overwrite: bool, no_pure_music: bool, quiet: bool, outputs: list[Path], links: list[str]) -> None:
     NCMLyricsApp(
-        exist=exist, overwrite=overwrite, noPureMusic=no_pure_music, quiet=quiet, outputs=outputs, links=links
+        exist=exist,
+        overwrite=overwrite,
+        noPureMusic=no_pure_music,
+        quiet=quiet,
+        outputs=outputs,
+        links=links,
     ).run()
 
 

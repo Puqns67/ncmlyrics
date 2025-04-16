@@ -1,10 +1,11 @@
+from collections.abc import Generator, Iterable
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import wait as waitFuture
 from pathlib import Path
 from re import Pattern
 from re import compile as compileRegex
 from re import escape as escapeRegex
-from typing import Any, Generator, Iterable
+from typing import Any
 
 from click import confirm
 from rich.console import Console
@@ -12,10 +13,10 @@ from rich.progress import Progress, TaskID
 from rich.theme import Theme
 
 from .api import NCMApi
-from .type import LinkType
 from .error import ParseLinkError, UnsupportedLinkError
 from .lrc import Lrc
 from .object import NCMAlbum, NCMPlaylist, NCMTrack
+from .type import LinkType
 from .util import parseLink, safeFileName
 
 __all__ = ["NCMLyricsApp"]
@@ -31,13 +32,19 @@ NCMLyricsAppTheme = Theme(
         "info": "",
         "warning": "orange1",
         "error": "bold red1",
-    }
+    },
 )
 
 
 class NCMLyricsApp:
     def __init__(
-        self, exist: bool, overwrite: bool, noPureMusic: bool, quiet: bool, outputs: list[Path], links: list[str]
+        self,
+        exist: bool,
+        overwrite: bool,
+        noPureMusic: bool,
+        quiet: bool,
+        outputs: list[Path],
+        links: list[str],
     ) -> None:
         self.console = Console(theme=NCMLyricsAppTheme, highlight=False)
         self.progress = Progress(console=self.console)
@@ -66,7 +73,8 @@ class NCMLyricsApp:
     def run(self) -> None:
         if len(self.links) == 0:
             self.console.print(
-                "请给出至少一个链接以解析曲目以获取其歌词！支持输入单曲，专辑与歌单的分享或网页链接。", style="error"
+                "请给出至少一个链接以解析曲目以获取其歌词！支持输入单曲，专辑与歌单的分享或网页链接。",
+                style="error",
             )
             return
 
@@ -74,6 +82,9 @@ class NCMLyricsApp:
         self.progress.start()
 
         for task in self.pool.map(self.resolveLink, self._repeat(progressId), self.links):
+            if task is None:
+                continue
+
             self.tasks.append(task)
             self.tracks.extend(task.tracks)
 
@@ -98,7 +109,7 @@ class NCMLyricsApp:
 
         self.progress.reset(progressId, description="输出 Lrc 文件", total=len(self.trackPairs))
 
-        waitFuture((self.pool.submit(self.exportLrc, progressId, *trackPair) for trackPair in self.trackPairs))
+        waitFuture(self.pool.submit(self.exportLrc, progressId, *trackPair) for trackPair in self.trackPairs)
 
         self.progress.stop()
         self.api.saveCookies()
@@ -107,21 +118,21 @@ class NCMLyricsApp:
         def printTracks(tracks: Iterable[NCMTrack], arrowStyle: str | None = None) -> None:
             for track in tracks:
                 self.console.print(
-                    f"[{arrowStyle}]-->[/{arrowStyle}] [link={track.link()}]{track.prettyString()}[/link]"
+                    f"[{arrowStyle}]-->[/{arrowStyle}] [link={track.link()}]{track.prettyString()}[/link]",
                 )
 
         for task in self.tasks:
             match task:
                 case NCMTrack():
                     self.console.print(
-                        f"[tracktitle]-- 单曲 -->[/tracktitle] [link={task.link()}]{task.prettyString()}[/link]"
+                        f"[tracktitle]-- 单曲 -->[/tracktitle] [link={task.link()}]{task.prettyString()}[/link]",
                     )
                 case NCMAlbum():
                     self.console.print(f"[albumtitle]== 专辑 ==>[/albumtitle] [link={task.link()}]{task.name}[/link]")
                     printTracks(task.tracks, "albumarrow")
                 case NCMPlaylist():
                     self.console.print(
-                        f"[playlisttitle]== 歌单 ==>[/playlisttitle] [link={task.link()}]{task.name}[/link]"
+                        f"[playlisttitle]== 歌单 ==>[/playlisttitle] [link={task.link()}]{task.name}[/link]",
                     )
                     printTracks(task.tracks, "playlistarrow")
 
@@ -141,16 +152,18 @@ class NCMLyricsApp:
                     else:
                         self.existingFilesByPrefix[prefix] = [content]
 
-    def resolveLink(self, progress: TaskID, link: str) -> NCMTrack | NCMAlbum | NCMPlaylist:
+    def resolveLink(self, progress: TaskID, link: str) -> NCMTrack | NCMAlbum | NCMPlaylist | None:
         try:
             parsed = parseLink(link)
         except UnsupportedLinkError:
             self.console.print(f"不支持的链接：{link}", style="error")
-            return
+            return None
         except ParseLinkError:
             self.console.print_exception()
             self.console.print(f"解析链接时出现错误：{link}", style="error")
-            return
+            return None
+
+        result: NCMTrack | NCMAlbum | NCMPlaylist
 
         match parsed.type:
             case LinkType.Track:
@@ -173,12 +186,10 @@ class NCMLyricsApp:
 
         for existingFile in existingFiles:
             if regex is None:
-                escapedArtists = "(,| )".join((escapeRegex(artist) for artist in track.artists[:3]))
+                escapedArtists = "(,| )".join(escapeRegex(artist) for artist in track.artists[:3])
                 if len(track.artists) > 3:
-                    escapedArtists += (
-                        rf"((,| ){")?((,| )".join((escapeRegex(artist) for artist in track.artists[3:]))})?"
-                    )
-                regex = compileRegex(rf"^{escapedArtists} - {escapeRegex(track.name.rstrip("."))}\.+(ncm|mp3|flac)$")
+                    escapedArtists += rf"((,| ){')?((,| )'.join(escapeRegex(artist) for artist in track.artists[3:])})?"
+                regex = compileRegex(rf"^{escapedArtists} - {escapeRegex(track.name.rstrip('.'))}\.+(ncm|mp3|flac)$")
             matched = regex.match(existingFile.name)
             if matched is not None:
                 targetPath = existingFile.with_suffix(".lrc")
@@ -189,21 +200,20 @@ class NCMLyricsApp:
         if targetPath is None:
             if self.exist:
                 return (track, None)
-            else:
-                targetPath = self.outputs[-1] / safeFileName(f"{",".join(track.artists)} - {track.name}.lrc")
+            targetPath = self.outputs[-1] / safeFileName(f"{','.join(track.artists)} - {track.name}.lrc")
 
         return (track, targetPath)
 
     def exportLrc(self, progress: TaskID, track: NCMTrack, path: Path | None) -> None:
         if path is None:
             self.console.print(
-                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[dark_turquoise] [warning]找不到对应的源文件, 跳过此曲目。[/warning]"
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[dark_turquoise] [warning]找不到对应的源文件, 跳过此曲目。[/warning]",
             )
             self.progress.advance(progress)
             return
-        elif not self.overwrite and path.exists():
+        if not self.overwrite and path.exists():
             self.console.print(
-                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]对应的歌词文件已存在, 跳过此曲目。[/warning]"
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]对应的歌词文件已存在, 跳过此曲目。[/warning]",
             )
             self.progress.advance(progress)
             return
@@ -211,12 +221,12 @@ class NCMLyricsApp:
         ncmlyrics = self.api.getLyricsByTrack(track.id)
         if ncmlyrics.isPureMusic and self.noPureMusic:
             self.console.print(
-                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]为纯音乐, 跳过此曲目。[/warning]"
+                f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [warning]为纯音乐, 跳过此曲目。[/warning]",
             )
         else:
             if not self.quiet:
                 self.console.print(
-                    f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [info]{str(path)}[/info]"
+                    f"[trackarrow]-->[/trackarrow] {track.prettyString()} [dark_turquoise]==>[/dark_turquoise] [info]{path!s}[/info]",
                 )
             Lrc.fromNCMLyrics(ncmlyrics).saveAs(path)
 

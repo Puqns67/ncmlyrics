@@ -1,10 +1,10 @@
 from httpx import RequestError
 
 __all__ = [
-    "NCMLyricsAppError",
     "NCMApiError",
     "NCMApiRequestError",
     "NCMApiRetryLimitExceededError",
+    "NCMLyricsAppError",
     "ObjectParseError",
     "ParseLinkError",
     "UnsupportedLinkError",

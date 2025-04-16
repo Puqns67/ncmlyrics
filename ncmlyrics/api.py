@@ -16,25 +16,25 @@ try:
     import brotlicffi as brotli  # type: ignore
 except ImportError:
     try:
-        import brotli
+        import brotli  # type: ignore
     except ImportError:
-        brotli = None
+        brotli = None  # type: ignore
 
 try:
     import zstandard  # type: ignore
 except ImportError:
-    zstandard = None
+    zstandard = None  # type: ignore
 
 try:
     import h2  # type: ignore
 except ImportError:
-    h2 = None
+    h2 = None  # type: ignore
 
 __all__ = ["NCMApi"]
 
 REQUEST_HEADERS = {
     "Accept": "application/json",
-    "Accept-Encoding": f"{"zstd, " if zstandard is not None else ""}{"br, " if brotli is not None else ""}gzip, deflate",
+    "Accept-Encoding": f"{'zstd, ' if zstandard is not None else ''}{'br, ' if brotli is not None else ''}gzip, deflate",
     "Connection": "keep-alive",
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
 }
@@ -59,8 +59,7 @@ class NCMApi:
 
     def _fetch(self, request: HttpXRequest, retry: int | None = 4) -> HttpXResponse:
         if retry is not None:  # None => Disable retry
-            if retry < 0:
-                retry = 0
+            retry = max(retry, 0)
 
             while retry >= 0:
                 try:
@@ -70,11 +69,10 @@ class NCMApi:
 
             raise NCMApiRetryLimitExceededError
 
-        else:
-            try:
-                return self._httpClient.send(request)
-            except Exception:
-                raise NCMApiRequestError
+        try:
+            return self._httpClient.send(request)
+        except Exception as e:
+            raise NCMApiRequestError(e.__repr__())
 
     def saveCookies(self) -> None:
         self._cookieJar.save(str(self._cookiePath))
@@ -97,7 +95,7 @@ class NCMApi:
                 "c": dumpJson(
                     [{"id": trackId} for trackId in seekedTrackIds],
                     separators=(",", ":"),
-                )
+                ),
             }
 
             request = self._httpClient.build_request("GET", "/v3/song/detail", params=params)
