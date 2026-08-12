@@ -4,7 +4,7 @@ from re import compile as compileRegex
 from urllib.parse import parse_qs as parseQuery
 from urllib.parse import urlparse as parseUrl
 
-from httpx import get as getHttp
+from httpx2 import get as getHttp
 
 from .error import ParseLinkError, UnsupportedLinkError
 from .type import LinkType

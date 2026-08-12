@@ -21,13 +21,13 @@ classifiers = [
 	"Operating System :: OS Independent",
 	"Natural Language :: Chinese (Simplified)",
 ]
-dependencies = ["anyio", "httpx", "rich>=13", "click>=8", "platformdirs>=4"]
+dependencies = ["anyio", "httpx2", "rich>=13", "click>=8", "platformdirs>=4"]
 dynamic = ["readme", "version"]
 
 [project.optional-dependencies]
-brotli = ["httpx[brotli]"]
-http2 = ["httpx[http2]"]
-zstd = ["httpx[zstd]"]
+brotli = ["httpx2[brotli]"]
+http2 = ["httpx2[http2]"]
+zstd = ["httpx2[zstd]"]
 
 [project.scripts]
 ncmlyrics = "ncmlyrics:main"

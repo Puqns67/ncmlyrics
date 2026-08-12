@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import TYPE_CHECKING, Any, Self
 
-from httpx import Response
+from httpx2 import Response
 
 from .error import ObjectParseError
 from .type import LrcType

@@ -1,4 +1,4 @@
-from httpx import URL
+from httpx2 import URL
 from platformdirs import PlatformDirs
 
 from .__version__ import __title__

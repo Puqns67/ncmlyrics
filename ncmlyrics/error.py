@@ -1,4 +1,4 @@
-from httpx import RequestError
+from httpx2 import RequestError
 
 __all__ = [
     "NCMApiError",

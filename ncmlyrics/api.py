@@ -2,9 +2,9 @@ from asyncio import TaskGroup
 from http.cookiejar import LoadError, MozillaCookieJar
 from json import dumps as dumpJson
 
-from httpx import AsyncClient as HttpXClient
-from httpx import Request as HttpXRequest
-from httpx import Response as HttpXResponse
+from httpx2 import AsyncClient as HttpXClient
+from httpx2 import Request as HttpXRequest
+from httpx2 import Response as HttpXResponse
 
 from .constant import CONFIG_API_DETAIL_TRACK_PER_REQUEST, NCM_API_BASE_URL, PLATFORM
 from .error import (
