@@ -15,21 +15,19 @@ classifiers = [
 	"Programming Language :: Python :: 3 :: Only",
 	"Programming Language :: Python :: 3.12",
 	"Programming Language :: Python :: 3.13",
+	"Programming Language :: Python :: 3.14",
 	"Programming Language :: Python :: Implementation :: CPython",
 	"License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 	"Operating System :: OS Independent",
 	"Natural Language :: Chinese (Simplified)",
 ]
-dependencies = ["httpx", "rich>=13", "click>=8", "platformdirs>=4"]
+dependencies = ["anyio", "httpx", "rich>=13", "click>=8", "platformdirs>=4"]
 dynamic = ["readme", "version"]
 
 [project.optional-dependencies]
-brotli = [
-	"brotli; platform_python_implementation == 'CPython'",
-	"brotlicffi; platform_python_implementation != 'CPython'",
-]
-http2 = ["h2>=3,<5"]
-zstd = ["zstandard>=0.18.0"]
+brotli = ["httpx[brotli]"]
+http2 = ["httpx[http2]"]
+zstd = ["httpx[zstd]"]
 
 [project.scripts]
 ncmlyrics = "ncmlyrics:main"

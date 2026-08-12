@@ -109,7 +109,7 @@ def parseLink(url: str) -> Link:
         except KeyError:
             raise ParseLinkError(f"链接中无 ID 参数：{url}")
         except ValueError:
-            raise ParseLinkError(f"无法转换 ID 为 数字：{url}")
+            raise ParseLinkError(f"无法转换 ID 为整形：{url}")
 
     return Link(contentType, contentId)
 

@@ -7,6 +7,8 @@ from re import Match
 from re import compile as compileRegex
 from typing import Self
 
+import anyio
+
 from .constant import CONFIG_LRC_AUTO_MERGE, CONFIG_LRC_AUTO_MERGE_OFFSET
 from .object import NCMLyrics
 from .type import LrcMetaType, LrcType
@@ -38,24 +40,21 @@ class Lrc:
         self.specials: LrcSpecials = LrcSpecials()
 
     @classmethod
-    def fromNCMLyrics(cls, lyrics: NCMLyrics) -> Self:
+    def fromNCMLyrics(cls, lyrics: NCMLyrics, types: Iterable[LrcType] | None = None) -> Self:
         result = cls()
 
-        for lrcType in LrcType:
+        for lrcType in types or LrcType:
             lrcStr = lyrics.get(lrcType)
             if lrcStr:
-                result.serializeLyricFile(lrcType, lrcStr)
+                result.parseLyricFile(lrcType, lrcStr)
 
         return result
 
-    def serializeLyricFile(self, lrcType: LrcType, lrcFile: str) -> None:
-        self.serializeLyricRows(lrcType, lrcFile.splitlines())
+    def parseLyricFile(self, lrcType: LrcType, lrcFile: str) -> None:
+        for row in lrcFile.splitlines():
+            self.parseLyricRow(lrcType, row)
 
-    def serializeLyricRows(self, lrcType: LrcType, lrcRows: Iterable[str]) -> None:
-        for row in lrcRows:
-            self.serializeLyricRow(lrcType, row)
-
-    def serializeLyricRow(self, lrcType: LrcType, lrcRow: str) -> None:
+    def parseLyricRow(self, lrcType: LrcType, lrcRow: str) -> None:
         # Skip commit lines
         if LRC_RE_COMMIT.match(lrcRow) is not None:
             return
@@ -74,7 +73,7 @@ class Lrc:
             self.appendMatchedLyricRow(lrcType, matchedLyricRow)
             return
 
-    def appendLyric(self, lrcType: LrcType, timestamps: Iterable[int], lyric: str):
+    def appendLyric(self, lrcType: LrcType, timestamps: Iterable[int], lyric: str) -> None:
         for timestamp in timestamps:
             if timestamp in self.lyrics:
                 self.lyrics[timestamp][lrcType] = lyric
@@ -137,35 +136,33 @@ class Lrc:
 
         self.appendLyric(lrcType, timestamps, lyric)
 
-    def deserializeLyricFile(self) -> str:
-        return "\n".join(list(self.deserializeLyricRows()))
+    def serializeLyricFile(self) -> str:
+        return "\n".join(self.serializeLyricRows()) + "\n"
 
-    def deserializeLyricRows(self) -> Generator[str, None, None]:
+    def serializeLyricRows(self) -> Generator[str, None, None]:
         yield from self.generateMetaDataRows()
         yield from self.generateLyricRows()
 
     def generateMetaDataRows(self) -> Generator[str, None, None]:
         for metaType in LrcMetaType:
             if metaType in self.metadata:
-                for lrcType in self.metadata[metaType].keys():
+                for lrcType in self.metadata[metaType]:
                     yield f"[{metaType.value}:{lrcType.prettyString()}/{self.metadata[metaType][lrcType]}]"
 
         for metaType, content in self.specials.metadata:
             yield f"[{metaType.value}:{content}]"
 
     def generateLyricRows(self) -> Generator[str, None, None]:
-        for timestamp in sorted(self.lyrics.keys()):
-            for lrcType in self.lyrics[timestamp].keys():
+        for timestamp in sorted(self.lyrics):
+            for lrcType in self.lyrics[timestamp]:
                 yield self._timestamp2TimeLabel(timestamp) + self.lyrics[timestamp][lrcType]
 
         for timestamp, content in self.specials.timestamp:
             yield self._timestamp2TimeLabel(timestamp) + content
 
-    def saveAs(self, path: Path) -> None:
-        with path.open("w+") as fs:
-            for row in self.deserializeLyricRows():
-                fs.write(row)
-                fs.write("\n")
+    async def saveAs(self, path: Path) -> None:
+        async with await anyio.open_file(path, "w+") as fs:
+            await fs.write(self.serializeLyricFile())
 
     @staticmethod
     def _timeLabel2Timestamp(timeLabel: Match[str]) -> int:
@@ -183,7 +180,7 @@ class Lrc:
         timestampMin = timestamp - CONFIG_LRC_AUTO_MERGE_OFFSET
         timestampMax = timestamp + CONFIG_LRC_AUTO_MERGE_OFFSET
 
-        for existLyric in self.lyrics.keys():
+        for existLyric in self.lyrics:
             if timestampMin <= existLyric <= timestampMax:
                 result = existLyric
                 break

@@ -1,7 +1,8 @@
+from asyncio import TaskGroup
 from http.cookiejar import LoadError, MozillaCookieJar
 from json import dumps as dumpJson
 
-from httpx import Client as HttpXClient
+from httpx import AsyncClient as HttpXClient
 from httpx import Request as HttpXRequest
 from httpx import Response as HttpXResponse
 
@@ -57,64 +58,65 @@ class NCMApi:
             http2=h2 is not None,
         )
 
-    def _fetch(self, request: HttpXRequest, retry: int | None = 4) -> HttpXResponse:
+    async def _fetch(self, request: HttpXRequest, retry: int | None = 4) -> HttpXResponse:
         if retry is not None:  # None => Disable retry
             retry = max(retry, 0)
 
             while retry >= 0:
                 try:
-                    return self._httpClient.send(request)
+                    return await self._httpClient.send(request)
                 except Exception:
                     retry -= 1
 
             raise NCMApiRetryLimitExceededError
 
         try:
-            return self._httpClient.send(request)
+            return await self._httpClient.send(request)
         except Exception as e:
             raise NCMApiRequestError(e.__repr__())
 
     def saveCookies(self) -> None:
         self._cookieJar.save(str(self._cookiePath))
 
-    def getDetailsForTrack(self, trackId: int) -> NCMTrack:
+    async def getDetailsForTrack(self, trackId: int) -> NCMTrack:
         request = self._httpClient.build_request("GET", "/v3/song/detail", params={"c": f"[{{'id':{trackId}}}]"})
-        return NCMTrack.fromApi(self._fetch(request)).pop()
+        return NCMTrack.fromApi(await self._fetch(request)).pop()
 
-    def getDetailsForTracks(self, trackIds: list[int]) -> list[NCMTrack]:
-        result: list[NCMTrack] = []
-        seek = 0
-
-        while True:
-            seekedTrackIds = trackIds[seek : seek + CONFIG_API_DETAIL_TRACK_PER_REQUEST]
-
-            if len(seekedTrackIds) == 0:
-                break
-
+    async def getDetailsForTracks(self, trackIds: list[int]) -> list[NCMTrack]:
+        async def fetchChunk(chunkTrackIds: list[int]) -> list[NCMTrack]:
             params = {
                 "c": dumpJson(
-                    [{"id": trackId} for trackId in seekedTrackIds],
+                    [{"id": trackId} for trackId in chunkTrackIds],
                     separators=(",", ":"),
                 ),
             }
 
             request = self._httpClient.build_request("GET", "/v3/song/detail", params=params)
 
-            result.extend(NCMTrack.fromApi(self._fetch(request)))
+            return NCMTrack.fromApi(await self._fetch(request))
 
-            seek += CONFIG_API_DETAIL_TRACK_PER_REQUEST
+        chunks = [
+            trackIds[seek : seek + CONFIG_API_DETAIL_TRACK_PER_REQUEST]
+            for seek in range(0, len(trackIds), CONFIG_API_DETAIL_TRACK_PER_REQUEST)
+        ]
 
+        async with TaskGroup() as tg:
+            tasks = [tg.create_task(fetchChunk(chunk)) for chunk in chunks]
+
+        result: list[NCMTrack] = []
+        for task in tasks:
+            result.extend(task.result())
         return result
 
-    def getDetailsForAlbum(self, albumId: int) -> NCMAlbum:
+    async def getDetailsForAlbum(self, albumId: int) -> NCMAlbum:
         request = self._httpClient.build_request("GET", f"/v1/album/{albumId}")
-        return NCMAlbum.fromApi(self._fetch(request))
+        return NCMAlbum.fromApi(await self._fetch(request))
 
-    def getDetailsForPlaylist(self, playlistId: int) -> NCMPlaylist:
+    async def getDetailsForPlaylist(self, playlistId: int) -> NCMPlaylist:
         request = self._httpClient.build_request("GET", "/v6/playlist/detail", params={"id": playlistId})
-        return NCMPlaylist.fromApi(self._fetch(request))
+        return NCMPlaylist.fromApi(await self._fetch(request))
 
-    def getLyricsByTrack(self, trackId: int) -> NCMLyrics:
+    async def getLyricsByTrack(self, trackId: int) -> NCMLyrics:
         params = {
             "id": trackId,
             "cp": False,
@@ -128,4 +130,4 @@ class NCMApi:
         }
 
         request = self._httpClient.build_request("GET", "/song/lyric/v1", params=params)
-        return NCMLyrics.fromApi(self._fetch(request)).withId(trackId)
+        return NCMLyrics.fromApi(await self._fetch(request)).withId(trackId)

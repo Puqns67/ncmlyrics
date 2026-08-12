@@ -1,11 +1,14 @@
 from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from httpx import Response
 
 from .error import ObjectParseError
 from .type import LrcType
+
+if TYPE_CHECKING:
+    from .api import NCMApi
 
 __all__ = ["NCMAlbum", "NCMLyrics", "NCMPlaylist", "NCMTrack"]
 
@@ -134,8 +137,8 @@ class NCMPlaylist:
     def link(self) -> str:
         return f"https://music.163.com/playlist?id={self.id}"
 
-    def fillDetailsOfTracks(self, api) -> None:
-        self.tracks.extend(api.getDetailsForTracks(self.trackIds))
+    async def fillDetailsOfTracks(self, api: "NCMApi") -> None:
+        self.tracks.extend(await api.getDetailsForTracks(self.trackIds))
         self.trackIds.clear()
 
 
